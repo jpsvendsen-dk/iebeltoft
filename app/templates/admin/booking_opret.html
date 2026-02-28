@@ -1,0 +1,104 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Opret booking{% endblock %}
+
+{% block content %}
+<div class="flex items-center gap-3 mb-6">
+    <a href="/admin/bookinger" class="text-gray-400 hover:text-gray-600 text-sm">← Bookinger</a>
+    <span class="text-gray-300">/</span>
+    <span class="text-gray-600 text-sm font-medium">Opret manuelt</span>
+</div>
+
+<div class="max-w-xl">
+    {% if fejl %}
+    <div class="bg-red-50 border border-red-300 text-red-700 text-sm rounded-lg p-3 mb-5">
+        {{ fejl }}
+    </div>
+    {% endif %}
+
+    <form method="post" action="/admin/bookinger/opret"
+          class="bg-white rounded-xl shadow-sm p-6 space-y-4">
+
+        <h1 class="text-lg font-semibold text-gray-800 mb-2">Ny booking</h1>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Ankomst *</label>
+                <input type="date" name="check_in" required
+                       value="{{ check_in or '' }}"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                              focus:outline-none focus:ring-2 focus:ring-blue-400">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Afrejse *</label>
+                <input type="date" name="check_out" required
+                       value="{{ check_out or '' }}"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                              focus:outline-none focus:ring-2 focus:ring-blue-400">
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Gæstens navn *</label>
+            <input type="text" name="guest_name" required
+                   value="{{ guest_name or '' }}"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                          focus:outline-none focus:ring-2 focus:ring-blue-400">
+        </div>
+
+        <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">E-mail *</label>
+            <input type="email" name="guest_email" required
+                   value="{{ guest_email or '' }}"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                          focus:outline-none focus:ring-2 focus:ring-blue-400">
+        </div>
+
+        <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Telefon</label>
+            <input type="tel" name="guest_phone"
+                   value="{{ guest_phone or '' }}"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                          focus:outline-none focus:ring-2 focus:ring-blue-400">
+        </div>
+
+        <div>
+            <label class="block text-xs font-medium text-gray-600 mb-2">Status</label>
+            <div class="grid grid-cols-3 gap-2">
+                {% for val, farver in [
+                    ("confirmed", ("bg-green-100", "text-green-800", "Bekræftet")),
+                    ("pending",   ("bg-yellow-100", "text-yellow-800", "Afventende")),
+                    ("cancelled", ("bg-gray-100", "text-gray-500", "Annulleret")),
+                ] %}
+                <label class="cursor-pointer">
+                    <input type="radio" name="status" value="{{ val }}" class="sr-only peer"
+                           {% if val == "confirmed" %}checked{% endif %}>
+                    <div class="text-center py-2 rounded-lg border-2 border-transparent
+                                peer-checked:border-gray-800 {{ farver[0] }} {{ farver[1] }}
+                                text-xs font-medium select-none">
+                        {{ farver[2] }}
+                    </div>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Admin-noter</label>
+            <textarea name="notes" rows="2"
+                      class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                             focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      placeholder="Intern note, fx 'Telefonbooking'">{{ notes or '' }}</textarea>
+        </div>
+
+        <p class="text-xs text-gray-400">
+            Prisen beregnes automatisk ud fra de definerede sæsonpriser.
+        </p>
+
+        <button type="submit"
+                class="w-full bg-blue-600 text-white py-2.5 rounded-lg hover:bg-blue-700
+                       transition font-medium text-sm">
+            Opret booking
+        </button>
+    </form>
+</div>
+{% endblock %}

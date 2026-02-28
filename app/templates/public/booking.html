@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+{% block title %}Book ophold — iebeltoft.dk{% endblock %}
+
+{% block content %}
+<h1 class="text-3xl font-bold text-gray-800 mb-2">Book ophold</h1>
+<p class="text-gray-500 mb-6">Klik på en ankomstdato, derefter en afrejsedato.</p>
+
+<!-- Sæsonforklaring -->
+<div class="flex flex-wrap gap-3 mb-6">
+    {% for bogstav, farve in saeson_farver.items() %}
+    <div class="flex items-center gap-1.5">
+        <span class="w-4 h-4 rounded {{ farve.bg }} inline-block border border-black/10"></span>
+        <span class="text-xs text-gray-600">{{ farve.label }}</span>
+    </div>
+    {% endfor %}
+    <div class="flex items-center gap-1.5">
+        <span class="w-4 h-4 rounded bg-gray-200 inline-block"></span>
+        <span class="text-xs text-gray-400">Optaget</span>
+    </div>
+</div>
+
+<div class="lg:flex lg:gap-8">
+
+    <!-- ── Kalender ──────────────────────────────────────────────────────── -->
+    <div class="lg:flex-1">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6" id="kalender">
+            {% for maaned in maaneder %}
+            <div class="bg-white rounded-xl shadow-sm p-4">
+                <div class="text-sm font-semibold text-gray-700 mb-3 text-center">
+                    {{ maaned.navn }} {{ maaned.aar }}
+                </div>
+                <!-- Ugedagsoverskrifter -->
+                <div class="grid grid-cols-7 text-center text-xs text-gray-400 mb-1 select-none">
+                    <div>Ma</div><div>Ti</div><div>On</div><div>To</div>
+                    <div>Fr</div><div>Lø</div><div>Sø</div>
+                </div>
+                <!-- Dagceller -->
+                <div class="grid grid-cols-7 gap-px">
+                    {% for _ in range(maaned.start_ugedag) %}
+                    <div></div>
+                    {% endfor %}
+                    {% for dag in maaned.dage %}
+                    <div
+                        class="dag-celle relative text-center text-xs py-1 rounded select-none transition-colors
+                               {% if dag.status == 'fortid' %}
+                                   text-gray-300 cursor-not-allowed
+                               {% elif dag.status == 'optaget' %}
+                                   bg-gray-200 text-gray-400 cursor-not-allowed line-through
+                               {% else %}
+                                   {{ dag.bg }} {{ dag.text }} {{ dag.hover }} cursor-pointer
+                               {% endif %}"
+                        data-dato="{{ dag.dato_str }}"
+                        data-status="{{ dag.status }}"
+                        data-saeson="{{ dag.saeson }}"
+                    >{{ dag.dag_nr }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- ── Bokssidepanel ─────────────────────────────────────────────────── -->
+    <div class="lg:w-80 xl:w-96">
+        <div class="sticky top-6 bg-white rounded-xl shadow-sm p-5 space-y-4">
+
+            <h2 class="font-semibold text-gray-700">Dit ophold</h2>
+
+            <!-- Dato-visning -->
+            <div class="grid grid-cols-2 gap-2">
+                <div class="border border-gray-200 rounded-lg p-3">
+                    <div class="text-xs text-gray-400 mb-0.5">Ankomst</div>
+                    <div id="vis-check-in" class="text-sm font-medium text-gray-700">—</div>
+                </div>
+                <div class="border border-gray-200 rounded-lg p-3">
+                    <div class="text-xs text-gray-400 mb-0.5">Afrejse</div>
+                    <div id="vis-check-out" class="text-sm font-medium text-gray-700">—</div>
+                </div>
+            </div>
+
+            <!-- Prisvisning (HTMX) -->
+            <div id="pris-container"
+                 hx-get="/booking/pris"
+                 hx-trigger="opdaterPris from:body"
+                 hx-include="#input-check-in, #input-check-out"
+                 hx-target="#pris-container"
+                 class="min-h-[3rem]">
+                <p class="text-sm text-gray-400">Vælg datoer for at se prisen.</p>
+            </div>
+
+            <!-- Skjulte formfelter opdateret af JS -->
+            <input type="hidden" id="input-check-in"  name="check_in"  value="">
+            <input type="hidden" id="input-check-out" name="check_out" value="">
+
+            <!-- Gæsteformular -->
+            <form id="booking-form" method="post" action="/booking/opret"
+                  class="space-y-3" style="display:none">
+                <input type="hidden" name="check_in"  id="form-check-in">
+                <input type="hidden" name="check_out" id="form-check-out">
+
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Fulde navn *</label>
+                    <input type="text" name="guest_name" required
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                                  focus:outline-none focus:ring-2 focus:ring-blue-400">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">E-mail *</label>
+                    <input type="email" name="guest_email" required
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                                  focus:outline-none focus:ring-2 focus:ring-blue-400">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Telefon</label>
+                    <input type="tel" name="guest_phone"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                                  focus:outline-none focus:ring-2 focus:ring-blue-400">
+                </div>
+
+                <button type="submit"
+                        class="w-full bg-blue-600 text-white py-2.5 rounded-lg hover:bg-blue-700
+                               transition font-medium text-sm">
+                    Send forespørgsel
+                </button>
+                <p class="text-xs text-gray-400 text-center">
+                    Du forpligter dig ikke til betaling endnu.
+                </p>
+            </form>
+
+            <button id="btn-nulstil"
+                    onclick="nulstil()"
+                    style="display:none"
+                    class="w-full text-xs text-gray-400 hover:text-gray-600 underline">
+                Nulstil datoer
+            </button>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let checkIn = null;
+let checkOut = null;
+
+const alle = () => document.querySelectorAll('.dag-celle');
+
+const fmt = dato => {
+    const d = new Date(dato + 'T00:00:00');
+    return d.getDate() + '. ' + ['jan','feb','mar','apr','maj','jun',
+        'jul','aug','sep','okt','nov','dec'][d.getMonth()] + ' ' + d.getFullYear();
+};
+
+function indeholderOptaget(fra, til) {
+    for (const el of alle()) {
+        const d = el.dataset.dato;
+        if (d > fra && d < til && el.dataset.status === 'optaget') return true;
+    }
+    return false;
+}
+
+function opdaterVisning(hoverDato = null) {
+    const effektivTil = checkOut || hoverDato;
+
+    for (const el of alle()) {
+        const dato = el.dataset.dato;
+        const status = el.dataset.status;
+
+        if (status === 'fortid' || status === 'optaget') continue;
+
+        // Fjern tidligere markeringer
+        el.classList.remove(
+            'bg-blue-600', 'text-white', '!bg-blue-100',
+            'rounded-l-md', 'rounded-r-md', 'rounded-none',
+            'ring-2', 'ring-blue-500'
+        );
+
+        if (dato === checkIn && dato === checkOut) {
+            el.classList.add('bg-blue-600', 'text-white');
+        } else if (dato === checkIn) {
+            el.classList.add('bg-blue-600', 'text-white', 'rounded-l-md');
+        } else if (dato === checkOut) {
+            el.classList.add('bg-blue-600', 'text-white', 'rounded-r-md');
+        } else if (effektivTil && dato > checkIn && dato < effektivTil) {
+            el.classList.add('!bg-blue-100', 'rounded-none');
+        }
+    }
+}
+
+function opdaterFormular() {
+    document.getElementById('vis-check-in').textContent  = checkIn  ? fmt(checkIn)  : '—';
+    document.getElementById('vis-check-out').textContent = checkOut ? fmt(checkOut) : '—';
+
+    document.getElementById('input-check-in').value  = checkIn  || '';
+    document.getElementById('input-check-out').value = checkOut || '';
+    document.getElementById('form-check-in').value   = checkIn  || '';
+    document.getElementById('form-check-out').value  = checkOut || '';
+
+    const formEl     = document.getElementById('booking-form');
+    const nulstilBtn = document.getElementById('btn-nulstil');
+
+    if (checkIn && checkOut) {
+        formEl.style.display     = '';
+        nulstilBtn.style.display = '';
+        // Udløs HTMX prisberegning
+        htmx.trigger(document.body, 'opdaterPris');
+    } else {
+        formEl.style.display     = 'none';
+        nulstilBtn.style.display = checkIn ? '' : 'none';
+    }
+}
+
+function nulstil() {
+    checkIn = null;
+    checkOut = null;
+    opdaterVisning();
+    opdaterFormular();
+    document.getElementById('pris-container').innerHTML =
+        '<p class="text-sm text-gray-400">Vælg datoer for at se prisen.</p>';
+}
+
+// Klik-håndtering
+for (const el of alle()) {
+    el.addEventListener('click', () => {
+        const dato   = el.dataset.dato;
+        const status = el.dataset.status;
+
+        if (status !== 'ledig') return;
+
+        if (!checkIn || checkOut) {
+            checkIn  = dato;
+            checkOut = null;
+        } else if (dato === checkIn) {
+            checkIn = null;
+        } else if (dato < checkIn) {
+            checkIn  = dato;
+            checkOut = null;
+        } else {
+            if (indeholderOptaget(checkIn, dato)) {
+                // Afbryd og start forfra
+                checkIn  = dato;
+                checkOut = null;
+            } else {
+                checkOut = dato;
+            }
+        }
+
+        opdaterVisning();
+        opdaterFormular();
+    });
+
+    // Hover-forhåndsvisning af range
+    el.addEventListener('mouseenter', () => {
+        if (checkIn && !checkOut && el.dataset.status === 'ledig' && el.dataset.dato > checkIn) {
+            opdaterVisning(el.dataset.dato);
+        }
+    });
+    el.addEventListener('mouseleave', () => {
+        if (checkIn && !checkOut) opdaterVisning();
+    });
+}
+</script>
+{% endblock %}

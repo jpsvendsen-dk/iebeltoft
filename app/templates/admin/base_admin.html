@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Admin{% endblock %} — iebeltoft.dk</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+    <div class="flex min-h-screen">
+
+        <!-- Sidebar -->
+        <aside class="w-56 bg-blue-900 text-white flex flex-col">
+            <div class="px-5 py-5 border-b border-blue-800">
+                <span class="font-bold text-lg">iebeltoft.dk</span>
+                <div class="text-blue-300 text-xs mt-0.5">Admin-panel</div>
+            </div>
+            <nav class="flex-1 px-3 py-4 space-y-1 text-sm">
+                <a href="/admin/"
+                   class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-800 transition
+                          {% if aktiv_side == 'dashboard' %}bg-blue-800{% endif %}">
+                    Oversigt
+                </a>
+                <a href="/admin/bookinger"
+                   class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-800 transition
+                          {% if aktiv_side == 'bookinger' %}bg-blue-800{% endif %}">
+                    Bookinger
+                </a>
+                <a href="/admin/saesoner"
+                   class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-800 transition
+                          {% if aktiv_side == 'saesoner' %}bg-blue-800{% endif %}">
+                    Sæsonkalender
+                </a>
+                <a href="/admin/priser"
+                   class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-800 transition
+                          {% if aktiv_side == 'priser' %}bg-blue-800{% endif %}">
+                    Sæsonpriser
+                </a>
+            </nav>
+            <div class="px-3 py-4 border-t border-blue-800">
+                <a href="/admin/logout"
+                   class="block text-center text-sm text-blue-300 hover:text-white transition">
+                    Log ud
+                </a>
+            </div>
+        </aside>
+
+        <!-- Indhold -->
+        <main class="flex-1 p-8">
+            {% block content %}{% endblock %}
+        </main>
+
+    </div>
+
+</body>
+</html>

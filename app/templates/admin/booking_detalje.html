@@ -1,0 +1,152 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Booking #{{ booking.id }}{% endblock %}
+
+{% block content %}
+<div class="flex items-center gap-3 mb-6">
+    <a href="/admin/bookinger" class="text-gray-400 hover:text-gray-600 text-sm">← Bookinger</a>
+    <span class="text-gray-300">/</span>
+    <span class="text-gray-600 text-sm font-medium">Booking #{{ booking.id }}</span>
+</div>
+
+{% if gemt %}
+<div class="bg-green-50 border border-green-300 text-green-700 text-sm rounded-lg p-3 mb-5">
+    Ændringerne er gemt.
+</div>
+{% endif %}
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    <!-- Gæsteinfo -->
+    <div class="lg:col-span-2 space-y-5">
+
+        <div class="bg-white rounded-xl shadow-sm p-5">
+            <h2 class="font-semibold text-gray-700 mb-4">Gæsteoplysninger</h2>
+            <dl class="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                    <dt class="text-gray-400 text-xs mb-0.5">Navn</dt>
+                    <dd class="font-medium text-gray-800">{{ booking.guest_name }}</dd>
+                </div>
+                <div>
+                    <dt class="text-gray-400 text-xs mb-0.5">E-mail</dt>
+                    <dd>
+                        <a href="mailto:{{ booking.guest_email }}"
+                           class="text-blue-600 hover:underline">{{ booking.guest_email }}</a>
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-gray-400 text-xs mb-0.5">Telefon</dt>
+                    <dd class="text-gray-800">{{ booking.guest_phone or '—' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-gray-400 text-xs mb-0.5">Modtaget</dt>
+                    <dd class="text-gray-500">{{ booking.created_at.strftime("%d.%m.%Y %H:%M") if booking.created_at else '—' }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm p-5">
+            <h2 class="font-semibold text-gray-700 mb-4">Opholdets detaljer</h2>
+            <dl class="grid grid-cols-2 gap-3 text-sm mb-4">
+                <div>
+                    <dt class="text-gray-400 text-xs mb-0.5">Ankomst</dt>
+                    <dd class="font-medium text-gray-800">{{ booking.check_in.strftime("%d.%m.%Y") }}</dd>
+                </div>
+                <div>
+                    <dt class="text-gray-400 text-xs mb-0.5">Afrejse</dt>
+                    <dd class="font-medium text-gray-800">{{ booking.check_out.strftime("%d.%m.%Y") }}</dd>
+                </div>
+                <div>
+                    <dt class="text-gray-400 text-xs mb-0.5">Antal nætter</dt>
+                    <dd class="text-gray-800">{{ (booking.check_out - booking.check_in).days }}</dd>
+                </div>
+                <div>
+                    <dt class="text-gray-400 text-xs mb-0.5">Samlet pris</dt>
+                    <dd class="font-bold text-blue-700 text-base">
+                        {% if booking.total_price %}{{ booking.total_price|int }} kr.{% else %}—{% endif %}
+                    </dd>
+                </div>
+            </dl>
+            {% if booking.stripe_payment_id %}
+            <div class="text-xs text-gray-400">Stripe ID: {{ booking.stripe_payment_id }}</div>
+            {% endif %}
+        </div>
+
+        <!-- Rediger status + noter -->
+        <form method="post" action="/admin/bookinger/{{ booking.id }}/opdater"
+              class="bg-white rounded-xl shadow-sm p-5 space-y-4">
+
+            <h2 class="font-semibold text-gray-700">Rediger booking</h2>
+
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-2">Status</label>
+                <div class="flex gap-3">
+                    {% for val, sl in status_labels.items() %}
+                    <label class="cursor-pointer flex-1">
+                        <input type="radio" name="status" value="{{ val }}" class="sr-only peer"
+                               {% if booking.status.value == val %}checked{% endif %}>
+                        <div class="text-center py-2 rounded-lg border-2 border-transparent
+                                    peer-checked:border-gray-800 {{ sl.bg }} {{ sl.text }}
+                                    text-xs font-medium select-none">
+                            {{ sl.label }}
+                        </div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">
+                    Admin-noter <span class="font-normal text-gray-400">(ikke synlig for gæst)</span>
+                </label>
+                <textarea name="notes" rows="3"
+                          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                                 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                          placeholder="Interne noter...">{{ booking.notes or '' }}</textarea>
+            </div>
+
+            <div class="flex gap-3">
+                <button type="submit"
+                        class="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium">
+                    Gem ændringer
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Handlinger i siden -->
+    <div class="space-y-4">
+        {% set sl = status_labels[booking.status.value] %}
+        <div class="bg-white rounded-xl shadow-sm p-5">
+            <div class="text-xs text-gray-400 mb-1">Nuværende status</div>
+            <span class="px-3 py-1 rounded-full text-sm font-medium {{ sl.bg }} {{ sl.text }}">
+                {{ sl.label }}
+            </span>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm p-5">
+            <div class="text-sm font-medium text-gray-700 mb-3">Kontakt gæst</div>
+            <a href="mailto:{{ booking.guest_email }}?subject=Din booking på iebeltoft.dk"
+               class="block text-center text-sm bg-gray-100 hover:bg-gray-200 text-gray-700
+                      py-2 rounded-lg transition mb-2">
+                Send e-mail
+            </a>
+            {% if booking.guest_phone %}
+            <a href="tel:{{ booking.guest_phone }}"
+               class="block text-center text-sm bg-gray-100 hover:bg-gray-200 text-gray-700
+                      py-2 rounded-lg transition">
+                Ring: {{ booking.guest_phone }}
+            </a>
+            {% endif %}
+        </div>
+
+        <form method="post" action="/admin/bookinger/{{ booking.id }}/slet"
+              onsubmit="return confirm('Slet booking #{{ booking.id }} permanent?')">
+            <button type="submit"
+                    class="w-full text-sm text-red-500 hover:text-red-700 hover:underline py-2">
+                Slet booking
+            </button>
+        </form>
+    </div>
+
+</div>
+{% endblock %}

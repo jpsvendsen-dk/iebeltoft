@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Booking modtaget — iebeltoft.dk{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto text-center py-12">
+    <div class="text-6xl mb-4">✓</div>
+    <h1 class="text-3xl font-bold text-green-700 mb-2">Tak for din forespørgsel!</h1>
+    <p class="text-gray-500 mb-8">Vi vender tilbage hurtigst muligt med bekræftelse og betalingsinfo.</p>
+
+    <div class="bg-white rounded-xl shadow-sm p-6 text-left space-y-3 mb-8">
+        <div class="flex justify-between text-sm">
+            <span class="text-gray-500">Ankomst</span>
+            <span class="font-medium">{{ booking.check_in.strftime("%d. %m. %Y") }}</span>
+        </div>
+        <div class="flex justify-between text-sm">
+            <span class="text-gray-500">Afrejse</span>
+            <span class="font-medium">{{ booking.check_out.strftime("%d. %m. %Y") }}</span>
+        </div>
+        <div class="flex justify-between text-sm">
+            <span class="text-gray-500">Antal nætter</span>
+            <span class="font-medium">{{ (booking.check_out - booking.check_in).days }}</span>
+        </div>
+        <div class="flex justify-between text-sm border-t pt-3 mt-3">
+            <span class="text-gray-500">Forventet pris</span>
+            <span class="font-bold text-blue-700 text-lg">{{ booking.total_price|int }} kr.</span>
+        </div>
+        <div class="flex justify-between text-sm">
+            <span class="text-gray-500">Navn</span>
+            <span class="font-medium">{{ booking.guest_name }}</span>
+        </div>
+        <div class="flex justify-between text-sm">
+            <span class="text-gray-500">E-mail</span>
+            <span class="font-medium">{{ booking.guest_email }}</span>
+        </div>
+        <div class="flex justify-between text-sm">
+            <span class="text-gray-500">Booking-nr.</span>
+            <span class="font-medium text-gray-400">#{{ booking.id }}</span>
+        </div>
+    </div>
+
+    <a href="/" class="text-blue-600 hover:underline text-sm">← Tilbage til forsiden</a>
+</div>
+{% endblock %}

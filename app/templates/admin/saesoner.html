@@ -1,0 +1,149 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Sæsonkalender{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">Sæsonkalender</h1>
+    <div class="flex gap-2 items-center">
+        <a href="/admin/saesoner?aar={{ aar - 1 }}"
+           class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 text-sm">← {{ aar - 1 }}</a>
+        <span class="font-semibold text-gray-700">{{ aar }}</span>
+        <a href="/admin/saesoner?aar={{ aar + 1 }}"
+           class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 text-sm">{{ aar + 1 }} →</a>
+    </div>
+</div>
+
+<!-- Sæsonforklaring -->
+<div class="flex gap-3 mb-6 flex-wrap">
+    {% for bogstav, farve in saeson_farver.items() %}
+    <div class="flex items-center gap-1.5">
+        <span class="w-4 h-4 rounded {{ farve.bg }} inline-block"></span>
+        <span class="text-sm text-gray-600">{{ farve.label }}</span>
+    </div>
+    {% endfor %}
+    <div class="flex items-center gap-1.5">
+        <span class="w-4 h-4 rounded bg-gray-100 border border-gray-200 inline-block"></span>
+        <span class="text-sm text-gray-400">Ingen sæson</span>
+    </div>
+</div>
+
+<!-- Årskalender -->
+<div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-10">
+    {% for maaned in aarsoverblik %}
+    <div class="bg-white rounded-xl shadow-sm p-3">
+        <div class="text-sm font-semibold text-gray-700 mb-2 text-center">{{ maaned.navn }}</div>
+        <!-- Ugedagsoverskrifter: Man Tir Ons Tor Fre Lør Søn -->
+        <div class="grid grid-cols-7 gap-px text-center text-xs text-gray-400 mb-1">
+            <div>M</div><div>T</div><div>O</div><div>T</div><div>F</div><div>L</div><div>S</div>
+        </div>
+        <div class="grid grid-cols-7 gap-px">
+            <!-- Tomme celler før første dag -->
+            {% for _ in range(maaned.start_ugedag) %}
+            <div></div>
+            {% endfor %}
+            <!-- Dage -->
+            {% for dag in maaned.dage %}
+            <div class="text-center text-xs py-0.5 rounded {{ dag.bg }} {{ dag.text }}"
+                 title="{{ dag.dato.isoformat() }}{% if dag.saeson %} — Sæson {{ dag.saeson }}{% endif %}">
+                {{ dag.dag_nr }}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- To-kolonner: Liste over intervaller + Tilføj nyt -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+    <!-- Liste over definerede intervaller -->
+    <div>
+        <h2 class="text-lg font-semibold text-gray-700 mb-3">Definerede intervaller</h2>
+        {% if intervaller %}
+        <div class="space-y-2">
+            {% for iv in intervaller %}
+            {% set farve = saeson_farver[iv.season.value] %}
+            <div class="bg-white rounded-lg shadow-sm p-3 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="w-8 h-8 rounded-full {{ farve.bg }} {{ farve.text }} flex items-center justify-center font-bold text-sm">
+                        {{ iv.season.value }}
+                    </span>
+                    <div>
+                        <div class="text-sm font-medium text-gray-800">
+                            {{ iv.date_from.strftime("%d. %b") }} – {{ iv.date_to.strftime("%d. %b %Y") }}
+                        </div>
+                        {% if iv.label %}
+                        <div class="text-xs text-gray-400">{{ iv.label }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <form method="post" action="/admin/saesoner/{{ iv.id }}/slet"
+                      onsubmit="return confirm('Slet dette interval?')">
+                    <button type="submit"
+                            class="text-xs text-red-500 hover:text-red-700 hover:underline">
+                        Slet
+                    </button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-sm text-gray-400 italic">Ingen intervaller defineret endnu.</p>
+        {% endif %}
+    </div>
+
+    <!-- Tilføj nyt interval -->
+    <div>
+        <h2 class="text-lg font-semibold text-gray-700 mb-3">Tilføj interval</h2>
+        <form method="post" action="/admin/saesoner/opret"
+              class="bg-white rounded-xl shadow-sm p-5 space-y-4">
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Fra dato</label>
+                    <input type="date" name="date_from" required
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Til dato</label>
+                    <input type="date" name="date_to" required
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Sæson</label>
+                <div class="grid grid-cols-5 gap-2">
+                    {% for bogstav in saeson_valg %}
+                    {% set farve = saeson_farver[bogstav] %}
+                    <label class="cursor-pointer">
+                        <input type="radio" name="season" value="{{ bogstav }}" class="sr-only peer"
+                               {% if bogstav == 'A' %}checked{% endif %}>
+                        <div class="text-center py-2 rounded-lg border-2 border-transparent
+                                    peer-checked:border-gray-800 {{ farve.bg }} {{ farve.text }}
+                                    font-bold text-sm select-none">
+                            {{ bogstav }}
+                        </div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">
+                    Navn/label <span class="font-normal text-gray-400">(valgfrit, fx "Sommer 2025")</span>
+                </label>
+                <input type="text" name="label" maxlength="100"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                       placeholder="Sommer 2025">
+            </div>
+
+            <button type="submit"
+                    class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition font-medium text-sm">
+                Tilføj interval
+            </button>
+        </form>
+    </div>
+
+</div>
+{% endblock %}

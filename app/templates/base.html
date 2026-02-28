@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}iebeltoft.dk{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen">
+
+    <header class="bg-white shadow-sm">
+        <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+            <a href="/" class="text-xl font-semibold text-blue-700">iebeltoft.dk</a>
+            <nav class="space-x-4 text-sm">
+                <a href="/" class="hover:text-blue-600">Hjem</a>
+                <a href="/booking" class="hover:text-blue-600">Book ophold</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-4 py-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="text-center text-xs text-gray-400 py-6 mt-8">
+        &copy; iebeltoft.dk
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

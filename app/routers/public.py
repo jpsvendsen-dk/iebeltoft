@@ -1,0 +1,107 @@
+import datetime
+from fastapi import APIRouter, Request, Form, Depends
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
+from app.database import get_db
+from app import models
+from app.services.kalender import generer_gaeste_kalender, tjek_overlap
+from app.services.priser import beregn_pris
+from app.services.saeson import SAESON_FARVER
+
+router = APIRouter()
+templates = Jinja2Templates(directory="app/templates")
+
+
+@router.get("/", response_class=HTMLResponse)
+async def forside(request: Request):
+    return templates.TemplateResponse("public/forside.html", {"request": request})
+
+
+@router.get("/booking", response_class=HTMLResponse)
+async def booking_side(request: Request, db: Session = Depends(get_db)):
+    maaneder = generer_gaeste_kalender(db)
+    return templates.TemplateResponse("public/booking.html", {
+        "request": request,
+        "maaneder": maaneder,
+        "saeson_farver": SAESON_FARVER,
+    })
+
+
+@router.get("/booking/pris", response_class=HTMLResponse)
+async def pris_beregning(
+    request: Request,
+    check_in: str = None,
+    check_out: str = None,
+    db: Session = Depends(get_db),
+):
+    if not check_in or not check_out:
+        return HTMLResponse("<p class='text-sm text-gray-400'>Vælg datoer for at se prisen.</p>")
+
+    try:
+        fra = datetime.date.fromisoformat(check_in)
+        til = datetime.date.fromisoformat(check_out)
+    except ValueError:
+        return HTMLResponse("<p class='text-sm text-red-500'>Ugyldige datoer.</p>")
+
+    if til <= fra:
+        return HTMLResponse("<p class='text-sm text-red-500'>Afrejse skal være efter ankomst.</p>")
+
+    resultat = beregn_pris(fra, til, db)
+
+    return templates.TemplateResponse("public/partials/pris.html", {
+        "request": request,
+        "resultat": resultat,
+        "fejl": resultat.get("fejl"),
+    })
+
+
+@router.post("/booking/opret")
+async def opret_booking(
+    request: Request,
+    check_in: str = Form(...),
+    check_out: str = Form(...),
+    guest_name: str = Form(...),
+    guest_email: str = Form(...),
+    guest_phone: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    try:
+        fra = datetime.date.fromisoformat(check_in)
+        til = datetime.date.fromisoformat(check_out)
+    except ValueError:
+        return RedirectResponse(url="/booking", status_code=303)
+
+    if til <= fra or fra < datetime.date.today():
+        return RedirectResponse(url="/booking", status_code=303)
+
+    if tjek_overlap(fra, til, db):
+        return RedirectResponse(url="/booking?fejl=optaget", status_code=303)
+
+    resultat = beregn_pris(fra, til, db)
+
+    booking = models.Booking(
+        guest_name=guest_name.strip(),
+        guest_email=guest_email.strip(),
+        guest_phone=guest_phone.strip(),
+        check_in=fra,
+        check_out=til,
+        total_price=resultat["total"],
+        status=models.BookingStatus.pending,
+    )
+    db.add(booking)
+    db.commit()
+    db.refresh(booking)
+
+    return RedirectResponse(url=f"/booking/bekraeftelse/{booking.id}", status_code=303)
+
+
+@router.get("/booking/bekraeftelse/{booking_id}", response_class=HTMLResponse)
+async def bekraeftelse(request: Request, booking_id: int, db: Session = Depends(get_db)):
+    booking = db.query(models.Booking).filter(models.Booking.id == booking_id).first()
+    if not booking:
+        return RedirectResponse(url="/booking", status_code=303)
+    return templates.TemplateResponse("public/bekraeftelse.html", {
+        "request": request,
+        "booking": booking,
+    })

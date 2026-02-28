@@ -1,0 +1,99 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Sæsonpriser{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-800 mb-2">Sæsonpriser</h1>
+<p class="text-sm text-gray-500 mb-6">
+    Priser er per uge. Dager uden for en hel uge beregnes forholdsmæssigt (ugepris ÷ 7 × antal nætter).
+</p>
+
+{% if gemt %}
+<div class="bg-green-50 border border-green-300 text-green-700 text-sm rounded-lg p-3 mb-6">
+    Priserne er gemt.
+</div>
+{% endif %}
+
+<form method="post" action="/admin/priser">
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden mb-6">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-gray-50 border-b border-gray-200">
+                    <th class="text-left px-5 py-3 font-semibold text-gray-600 w-28">Sæson</th>
+                    <th class="text-left px-5 py-3 font-semibold text-gray-600">Ugepris (kr.)</th>
+                    <th class="text-left px-5 py-3 font-semibold text-gray-600">Min. nætter</th>
+                    <th class="text-left px-5 py-3 font-semibold text-gray-600 text-gray-400">Natpris (beregnet)</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for s in saesoner %}
+                <tr class="hover:bg-gray-50 transition">
+                    <td class="px-5 py-4">
+                        <div class="flex items-center gap-2">
+                            <span class="w-8 h-8 rounded-full {{ s.farve.bg }} {{ s.farve.text }}
+                                         flex items-center justify-center font-bold text-sm">
+                                {{ s.bogstav }}
+                            </span>
+                            <span class="font-medium text-gray-700">Sæson {{ s.bogstav }}</span>
+                        </div>
+                    </td>
+                    <td class="px-5 py-4">
+                        <div class="flex items-center gap-1.5">
+                            <input
+                                type="number"
+                                name="pris_{{ s.bogstav }}"
+                                value="{{ s.price_per_week }}"
+                                min="0"
+                                step="50"
+                                placeholder="0"
+                                class="w-32 border border-gray-300 rounded-lg px-3 py-1.5
+                                       focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
+                            >
+                            <span class="text-gray-400 text-xs">kr.</span>
+                        </div>
+                    </td>
+                    <td class="px-5 py-4">
+                        <div class="flex items-center gap-1.5">
+                            <input
+                                type="number"
+                                name="min_{{ s.bogstav }}"
+                                value="{{ s.min_nights }}"
+                                min="1"
+                                max="14"
+                                class="w-20 border border-gray-300 rounded-lg px-3 py-1.5
+                                       focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
+                            >
+                            <span class="text-gray-400 text-xs">nætter</span>
+                        </div>
+                    </td>
+                    <td class="px-5 py-4 text-gray-400 text-xs">
+                        {% if s.price_per_week %}
+                        {{ "%.0f"|format(s.price_per_week / 7) }} kr./nat
+                        {% else %}
+                        —
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <button type="submit"
+            class="bg-blue-600 text-white px-8 py-2.5 rounded-lg hover:bg-blue-700 transition font-medium text-sm">
+        Gem priser
+    </button>
+</form>
+
+<!-- Priseksempel -->
+<div class="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-5">
+    <h2 class="text-sm font-semibold text-blue-800 mb-2">Sådan beregnes prisen</h2>
+    <p class="text-sm text-blue-700">
+        Et ophold på 10 nætter, hvor 7 nætter er Sæson A (6.000 kr./uge) og 3 nætter er Sæson B (4.500 kr./uge):
+    </p>
+    <ul class="text-sm text-blue-700 mt-2 space-y-1 list-disc list-inside">
+        <li>Sæson A: 6.000 ÷ 7 × 7 = <strong>6.000 kr.</strong></li>
+        <li>Sæson B: 4.500 ÷ 7 × 3 = <strong>1.929 kr.</strong></li>
+        <li>Total: <strong>7.929 kr.</strong></li>
+    </ul>
+</div>
+{% endblock %}

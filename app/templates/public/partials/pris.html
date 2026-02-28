@@ -1,0 +1,27 @@
+{% if fejl %}
+<div class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
+    {{ fejl }}
+</div>
+{% elif resultat %}
+<div class="space-y-2">
+    {% for linje in resultat.linjer %}
+    <div class="flex justify-between text-sm">
+        <span class="text-gray-600">
+            Sæson {{ linje.saeson }} &times; {{ linje.nætter }} nætter
+            {% if linje.ugepris %}
+            <span class="text-xs text-gray-400">({{ linje.ugepris|int }} kr./uge)</span>
+            {% endif %}
+        </span>
+        <span class="font-medium text-gray-800">
+            {% if linje.delbeløb %}{{ linje.delbeløb|int }} kr.{% else %}—{% endif %}
+        </span>
+    </div>
+    {% endfor %}
+    <div class="border-t border-gray-200 pt-2 flex justify-between font-semibold">
+        <span>Total ({{ resultat.nætter }} nætter)</span>
+        <span class="text-blue-700 text-lg">{{ resultat.total|int }} kr.</span>
+    </div>
+</div>
+{% else %}
+<p class="text-sm text-gray-400">Vælg datoer for at se prisen.</p>
+{% endif %}
