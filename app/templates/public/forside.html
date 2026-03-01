@@ -1,13 +1,191 @@
-{% extends "base.html" %}
-{% block title %}Sommerhus til leje — iebeltoft.dk{% endblock %}
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sommerhus ved Ebeltoft Vig — iebeltoft.dk</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .hero-overlay {
+            background: linear-gradient(to bottom,
+                rgba(0,0,0,0.1) 0%,
+                rgba(0,0,0,0.35) 60%,
+                rgba(0,0,0,0.65) 100%);
+        }
+        .img-rotated {
+            transform: rotate(-90deg) scale(2.2);
+            object-fit: cover;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body class="bg-stone-50 text-gray-800">
 
-{% block content %}
-<div class="text-center py-12">
-    <h1 class="text-4xl font-bold text-blue-800 mb-4">Sommerhus til leje</h1>
-    <p class="text-lg text-gray-600 mb-8">Velkomment til iebeltoft.dk — book dit ophold her.</p>
+<!-- Navigation -->
+<header class="absolute top-0 left-0 right-0 z-20">
+    <div class="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
+        <span class="text-white font-semibold text-lg tracking-wide drop-shadow">iebeltoft.dk</span>
+        <a href="/booking"
+           class="bg-white text-gray-800 px-5 py-2 rounded-full text-sm font-medium
+                  hover:bg-stone-100 transition shadow-md">
+            Book ophold
+        </a>
+    </div>
+</header>
+
+<!-- ── Hero ─────────────────────────────────────────────────────────────── -->
+<section class="relative h-[90vh] min-h-[540px] overflow-hidden">
+    <img src="/static/images/IMG_1286.jpeg"
+         alt="Udsigt over Ebeltoft Vig fra sommerhuset"
+         class="absolute inset-0 w-full h-full object-cover object-center">
+    <div class="hero-overlay absolute inset-0"></div>
+
+    <div class="relative z-10 h-full flex flex-col justify-end pb-16 px-6">
+        <div class="max-w-6xl mx-auto w-full">
+            <p class="text-amber-300 text-sm font-medium tracking-widest uppercase mb-3">
+                Kløverskrænten 13 · 8400 Ebeltoft
+            </p>
+            <h1 class="text-white text-5xl md:text-6xl font-bold leading-tight mb-4 drop-shadow-lg">
+                Sommerhus<br>ved Ebeltoft Vig
+            </h1>
+            <p class="text-stone-200 text-lg md:text-xl mb-8 max-w-xl">
+                Naturskønt beliggende direkte ved vandet med panoramaudsigt over havet.
+                Op til 6 gæster.
+            </p>
+            <a href="/booking"
+               class="inline-block bg-amber-500 hover:bg-amber-400 text-white
+                      px-8 py-4 rounded-full text-base font-semibold transition shadow-lg">
+                Se ledige datoer og book →
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- ── Highlights ────────────────────────────────────────────────────────── -->
+<section class="bg-white border-b border-stone-200">
+    <div class="max-w-6xl mx-auto px-6 py-10">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+            <div class="py-4">
+                <div class="text-3xl mb-2">🛏</div>
+                <div class="font-semibold text-gray-800">3 soveværelser</div>
+                <div class="text-sm text-gray-500 mt-0.5">Op til 6 gæster</div>
+            </div>
+            <div class="py-4">
+                <div class="text-3xl mb-2">🚿</div>
+                <div class="font-semibold text-gray-800">2 badeværelser</div>
+                <div class="text-sm text-gray-500 mt-0.5">Heraf ét med spa</div>
+            </div>
+            <div class="py-4">
+                <div class="text-3xl mb-2">🌊</div>
+                <div class="font-semibold text-gray-800">Direkte havudsigt</div>
+                <div class="text-sm text-gray-500 mt-0.5">Panoramavinduer</div>
+            </div>
+            <div class="py-4">
+                <div class="text-3xl mb-2">🔥</div>
+                <div class="font-semibold text-gray-800">Brændeovn</div>
+                <div class="text-sm text-gray-500 mt-0.5">Hyggelige aftener</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── Om huset ──────────────────────────────────────────────────────────── -->
+<section class="max-w-6xl mx-auto px-6 py-20">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+
+        <div>
+            <p class="text-amber-600 text-sm font-semibold tracking-widest uppercase mb-3">Om huset</p>
+            <h2 class="text-3xl font-bold text-gray-800 mb-5 leading-snug">
+                Hygge, ro og udsigt<br>over Ebeltoft Vig
+            </h2>
+            <p class="text-gray-600 leading-relaxed mb-4">
+                Sommerhuset på Kløverskrænten 13 ligger i naturskønne omgivelser tæt på
+                vandet ved Ebeltoft Vig. Store panoramavinduer vender direkte mod havet
+                og giver en fantastisk udsigt — uanset om det er en rolig sommermorgen
+                eller en dramatisk solnedgang.
+            </p>
+            <p class="text-gray-600 leading-relaxed mb-6">
+                Huset byder på tre soveværelser med plads til seks personer, to
+                badeværelser — ét med spa — samt en hyggelig stue med brændeovn til
+                de køligere aftener. Alt hvad der skal til for en perfekt ferie ved havet.
+            </p>
+            <ul class="space-y-2 text-sm text-gray-700">
+                <li class="flex items-center gap-2"><span class="text-amber-500">✓</span> 3 soveværelser · 6 senge</li>
+                <li class="flex items-center gap-2"><span class="text-amber-500">✓</span> 2 badeværelser, heraf 1 med spa</li>
+                <li class="flex items-center gap-2"><span class="text-amber-500">✓</span> Brændeovn i stuen</li>
+                <li class="flex items-center gap-2"><span class="text-amber-500">✓</span> Panoramaudsigt over Ebeltoft Vig</li>
+                <li class="flex items-center gap-2"><span class="text-amber-500">✓</span> Terrasse direkte mod havet</li>
+            </ul>
+        </div>
+
+        <div class="rounded-2xl overflow-hidden shadow-xl aspect-[4/3]">
+            <img src="/static/images/IMG_1175.jpeg"
+                 alt="Stue med brændeovn og havudsigt"
+                 class="w-full h-full object-cover">
+        </div>
+    </div>
+</section>
+
+<!-- ── Solnedgang / sunset-banner ───────────────────────────────────────── -->
+<section class="relative h-64 overflow-hidden bg-gray-900">
+    <img src="/static/images/IMG_1287.jpeg"
+         alt="Solnedgang over Ebeltoft Vig"
+         class="img-rotated absolute inset-0">
+    <div class="hero-overlay absolute inset-0"></div>
+    <div class="relative z-10 h-full flex items-center justify-center text-center px-6">
+        <div>
+            <p class="text-amber-300 text-sm tracking-widest uppercase mb-2">Naturen lige udenfor</p>
+            <p class="text-white text-2xl font-semibold">
+                Solnedgange du aldrig glemmer
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- ── Beliggenhed ───────────────────────────────────────────────────────── -->
+<section class="max-w-6xl mx-auto px-6 py-20">
+    <div class="text-center mb-10">
+        <p class="text-amber-600 text-sm font-semibold tracking-widest uppercase mb-3">Beliggenhed</p>
+        <h2 class="text-3xl font-bold text-gray-800 mb-3">Find vej til os</h2>
+        <p class="text-gray-500">Kløverskrænten 13, 8400 Ebeltoft</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-stone-100 text-center">
+            <div class="text-2xl mb-3">📍</div>
+            <div class="font-semibold text-gray-800 mb-1">Adresse</div>
+            <div class="text-gray-500 text-sm">Kløverskrænten 13<br>8400 Ebeltoft</div>
+        </div>
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-stone-100 text-center">
+            <div class="text-2xl mb-3">🏙</div>
+            <div class="font-semibold text-gray-800 mb-1">Fra Aarhus</div>
+            <div class="text-gray-500 text-sm">Ca. 55 km<br>ca. 50 minutters kørsel</div>
+        </div>
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-stone-100 text-center">
+            <div class="text-2xl mb-3">🏖</div>
+            <div class="font-semibold text-gray-800 mb-1">Strand</div>
+            <div class="text-gray-500 text-sm">Direkte adgang<br>til strand og natur</div>
+        </div>
+    </div>
+</section>
+
+<!-- ── CTA ───────────────────────────────────────────────────────────────── -->
+<section class="bg-amber-500 py-16 text-center px-6">
+    <h2 class="text-3xl font-bold text-white mb-3">Klar til en uforglemmelig ferie?</h2>
+    <p class="text-amber-100 mb-8 text-lg">Tjek ledige datoer og book dit ophold direkte online.</p>
     <a href="/booking"
-       class="bg-blue-600 text-white px-8 py-3 rounded-lg text-lg hover:bg-blue-700 transition">
-        Se ledige datoer
+       class="inline-block bg-white text-amber-600 font-semibold px-10 py-4
+              rounded-full text-base hover:bg-amber-50 transition shadow-md">
+        Se ledige datoer og book →
     </a>
-</div>
-{% endblock %}
+</section>
+
+<!-- Footer -->
+<footer class="bg-gray-900 text-gray-400 text-center text-sm py-6">
+    <p>iebeltoft.dk · Kløverskrænten 13, 8400 Ebeltoft</p>
+    <p class="mt-1 text-gray-600 text-xs">&copy; 2025</p>
+</footer>
+
+</body>
+</html>
