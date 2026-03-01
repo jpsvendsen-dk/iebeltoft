@@ -12,12 +12,7 @@
                 rgba(0,0,0,0.35) 60%,
                 rgba(0,0,0,0.65) 100%);
         }
-        .img-rotated {
-            transform: rotate(-90deg) scale(2.2);
-            object-fit: cover;
-            width: 100%;
-            height: 100%;
-        }
+        img { image-orientation: from-image; }
     </style>
 </head>
 <body class="bg-stone-50 text-gray-800">
@@ -36,8 +31,8 @@
 
 <!-- ── Hero ─────────────────────────────────────────────────────────────── -->
 <section class="relative h-[90vh] min-h-[540px] overflow-hidden">
-    <img src="/static/images/IMG_1286.jpeg"
-         alt="Udsigt over Ebeltoft Vig fra sommerhuset"
+    <img src="/static/images/IMG_0154.jpeg"
+         alt="Terrasse og udsigt over Ebeltoft Vig"
          class="absolute inset-0 w-full h-full object-cover object-center">
     <div class="hero-overlay absolute inset-0"></div>
 
@@ -128,6 +123,61 @@
     </div>
 </section>
 
+<!-- ── Fotogalleri ────────────────────────────────────────────────────────── -->
+<section class="max-w-6xl mx-auto px-6 pb-20">
+    <div class="text-center mb-8">
+        <p class="text-amber-600 text-sm font-semibold tracking-widest uppercase mb-3">Galleri</p>
+        <h2 class="text-3xl font-bold text-gray-800">Se sommerhuset</h2>
+    </div>
+
+    <!-- Bento-grid: stor + 2 små øverst, 3 ens nederst -->
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+
+        <!-- Stor: drone-hus — fylder 2 kolonner og 2 rækker -->
+        <div class="col-span-2 md:col-span-2 row-span-2 rounded-2xl overflow-hidden shadow-md aspect-[16/9]">
+            <img src="/static/images/drone_hus.jpg"
+                 alt="Sommerhuset set fra luften"
+                 class="w-full h-full object-cover hover:scale-105 transition-transform duration-500">
+        </div>
+
+        <!-- Lille: brændeovn -->
+        <div class="rounded-2xl overflow-hidden shadow-md aspect-square">
+            <img src="/static/images/IMG_1174.jpeg"
+                 alt="Ny brændeovn i stuen"
+                 class="w-full h-full object-cover hover:scale-105 transition-transform duration-500">
+        </div>
+
+        <!-- Lille: strand -->
+        <div class="rounded-2xl overflow-hidden shadow-md aspect-square">
+            <img src="/static/images/IMG_0225.jpeg"
+                 alt="Stranden ved Ebeltoft"
+                 class="w-full h-full object-cover hover:scale-105 transition-transform duration-500">
+        </div>
+
+        <!-- Lille: stue -->
+        <div class="rounded-2xl overflow-hidden shadow-md aspect-square">
+            <img src="/static/images/IMG_1258.jpeg"
+                 alt="Stue med panoramavinduer"
+                 class="w-full h-full object-cover hover:scale-105 transition-transform duration-500">
+        </div>
+
+        <!-- Lille: spiseplads -->
+        <div class="rounded-2xl overflow-hidden shadow-md aspect-square">
+            <img src="/static/images/IMG_8470.jpeg"
+                 alt="Spiseplads og køkken"
+                 class="w-full h-full object-cover hover:scale-105 transition-transform duration-500">
+        </div>
+
+        <!-- Lille: solnedgang indefra -->
+        <div class="rounded-2xl overflow-hidden shadow-md aspect-square">
+            <img src="/static/images/IMG_1286.jpeg"
+                 alt="Solnedgang over havet"
+                 class="w-full h-full object-cover hover:scale-105 transition-transform duration-500">
+        </div>
+
+    </div>
+</section>
+
 <!-- ── Faciliteter ────────────────────────────────────────────────────────── -->
 <section class="bg-stone-100 py-16 px-6">
     <div class="max-w-6xl mx-auto">
@@ -185,18 +235,19 @@
     </div>
 </section>
 
-<!-- ── Solnedgang / sunset-banner ───────────────────────────────────────── -->
-<section class="relative h-64 overflow-hidden bg-gray-900">
-    <img src="/static/images/IMG_1287.jpeg"
-         alt="Solnedgang over Ebeltoft Vig"
-         class="img-rotated absolute inset-0">
+<!-- ── Drone-banner ──────────────────────────────────────────────────────── -->
+<section class="relative h-80 overflow-hidden">
+    <img src="/static/images/drone_solnedgang.jpg"
+         alt="Kystlinje og Ebeltoft Vig ved solnedgang"
+         class="absolute inset-0 w-full h-full object-cover object-center">
     <div class="hero-overlay absolute inset-0"></div>
     <div class="relative z-10 h-full flex items-center justify-center text-center px-6">
         <div>
             <p class="text-amber-300 text-sm tracking-widest uppercase mb-2">Naturen lige udenfor</p>
-            <p class="text-white text-2xl font-semibold">
+            <p class="text-white text-3xl font-bold drop-shadow-lg">
                 Solnedgange du aldrig glemmer
             </p>
+            <p class="text-stone-300 mt-2 text-sm">Ebeltoft Vig · Djursland</p>
         </div>
     </div>
 </section>
