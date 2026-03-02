@@ -2,10 +2,46 @@
 {% block title %}Book ophold — iebeltoft.dk{% endblock %}
 
 {% block content %}
-<h1 class="text-3xl font-bold text-gray-800 mb-2">Book ophold</h1>
-<p class="text-gray-500 mb-6">Klik på en ankomstdato, derefter en afrejsedato.</p>
 
-<!-- Sæsonforklaring -->
+<!-- Hero-banner -->
+<div class="-mx-4 mb-8 h-60 relative overflow-hidden">
+    <img src="/static/images/drone_hus.jpg" alt="Kløverskrænten 13 fra luften"
+         class="w-full h-full object-cover" style="object-position: center 55%; image-orientation: from-image;">
+    <div class="absolute inset-0 bg-gradient-to-r from-black/65 via-black/30 to-transparent flex items-end p-6">
+        <div>
+            <h1 class="text-3xl font-bold text-white drop-shadow-md mb-1">Book dit ophold</h1>
+            <p class="text-white/75 text-sm">Klik på ankomst- og afrejsedato i kalenderen nedenfor</p>
+        </div>
+    </div>
+</div>
+
+<!-- ── Sæsonpriser ───────────────────────────────────────────────────────── -->
+{% if saeson_priser %}
+<div class="mb-8">
+    <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Priser per sæson</h2>
+    {% set navne    = {"A": "Højsæson",     "B": "Mellemsæson",      "C": "Lavsæson",    "D": "Skuldersæson",  "E": "Vintersæson"} %}
+    {% set perioder = {"A": "Juli – august", "B": "Juni / tidl. aug", "C": "Maj / sep",   "D": "Apr / okt",     "E": "Nov – mar"} %}
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        {% for pris in saeson_priser %}
+        {% set farve = saeson_farver[pris.season.value] %}
+        <div class="rounded-2xl p-4 {{ farve.bg }} {{ farve.text }} shadow-sm flex flex-col">
+            <div class="text-3xl font-extrabold leading-none mb-1">{{ pris.season.value }}</div>
+            <div class="text-sm font-semibold mb-0.5">{{ navne[pris.season.value] }}</div>
+            <div class="text-xs opacity-70 mb-3">{{ perioder[pris.season.value] }}</div>
+            <div class="mt-auto">
+                <div class="text-xl font-bold">{{ pris.price_per_week|int }} <span class="text-xs font-normal opacity-80">kr./uge</span></div>
+                {% if pris.min_nights and pris.min_nights > 1 %}
+                <div class="text-xs opacity-70 mt-0.5">Min. {{ pris.min_nights }} nætter</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <p class="text-xs text-gray-400 mt-2">* Delvise uger beregnes som dagspris (ugepris ÷ 7)</p>
+</div>
+{% endif %}
+
+<!-- ── Sæsonforklaring / legende ─────────────────────────────────────────── -->
 <div class="flex flex-wrap gap-3 mb-6">
     {% for bogstav, farve in saeson_farver.items() %}
     <div class="flex items-center gap-1.5">
@@ -62,77 +98,88 @@
 
     <!-- ── Bokssidepanel ─────────────────────────────────────────────────── -->
     <div class="lg:w-80 xl:w-96">
-        <div class="sticky top-6 bg-white rounded-xl shadow-sm p-5 space-y-4">
+        <div class="sticky top-6 bg-white rounded-2xl shadow-sm overflow-hidden">
 
-            <h2 class="font-semibold text-gray-700">Dit ophold</h2>
-
-            <!-- Dato-visning -->
-            <div class="grid grid-cols-2 gap-2">
-                <div class="border border-gray-200 rounded-lg p-3">
-                    <div class="text-xs text-gray-400 mb-0.5">Ankomst</div>
-                    <div id="vis-check-in" class="text-sm font-medium text-gray-700">—</div>
-                </div>
-                <div class="border border-gray-200 rounded-lg p-3">
-                    <div class="text-xs text-gray-400 mb-0.5">Afrejse</div>
-                    <div id="vis-check-out" class="text-sm font-medium text-gray-700">—</div>
+            <!-- Panel-header med billede -->
+            <div class="h-32 relative overflow-hidden">
+                <img src="/static/images/IMG_0154.jpeg" alt="Terrasse ved solnedgang"
+                     class="w-full h-full object-cover" style="object-position: center 60%; image-orientation: from-image;">
+                <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent flex items-end p-4">
+                    <span class="text-white font-semibold text-sm">Dit ophold</span>
                 </div>
             </div>
 
-            <!-- Prisvisning (HTMX) -->
-            <div id="pris-container"
-                 hx-get="/booking/pris"
-                 hx-trigger="opdaterPris from:body"
-                 hx-include="#input-check-in, #input-check-out"
-                 hx-target="#pris-container"
-                 class="min-h-[3rem]">
-                <p class="text-sm text-gray-400">Vælg datoer for at se prisen.</p>
-            </div>
+            <div class="p-5 space-y-4">
 
-            <!-- Skjulte formfelter opdateret af JS -->
-            <input type="hidden" id="input-check-in"  name="check_in"  value="">
-            <input type="hidden" id="input-check-out" name="check_out" value="">
-
-            <!-- Gæsteformular -->
-            <form id="booking-form" method="post" action="/booking/opret"
-                  class="space-y-3" style="display:none">
-                <input type="hidden" name="check_in"  id="form-check-in">
-                <input type="hidden" name="check_out" id="form-check-out">
-
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Fulde navn *</label>
-                    <input type="text" name="guest_name" required
-                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
-                                  focus:outline-none focus:ring-2 focus:ring-blue-400">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">E-mail *</label>
-                    <input type="email" name="guest_email" required
-                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
-                                  focus:outline-none focus:ring-2 focus:ring-blue-400">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Telefon</label>
-                    <input type="tel" name="guest_phone"
-                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
-                                  focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <!-- Dato-visning -->
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="border border-gray-200 rounded-xl p-3">
+                        <div class="text-xs text-gray-400 mb-0.5">Ankomst</div>
+                        <div id="vis-check-in" class="text-sm font-medium text-gray-700">—</div>
+                    </div>
+                    <div class="border border-gray-200 rounded-xl p-3">
+                        <div class="text-xs text-gray-400 mb-0.5">Afrejse</div>
+                        <div id="vis-check-out" class="text-sm font-medium text-gray-700">—</div>
+                    </div>
                 </div>
 
-                <button type="submit"
-                        class="w-full bg-blue-600 text-white py-2.5 rounded-lg hover:bg-blue-700
-                               transition font-medium text-sm">
-                    Send forespørgsel
+                <!-- Prisvisning (HTMX) -->
+                <div id="pris-container"
+                     hx-get="/booking/pris"
+                     hx-trigger="opdaterPris from:body"
+                     hx-include="#input-check-in, #input-check-out"
+                     hx-target="#pris-container"
+                     class="min-h-[3rem]">
+                    <p class="text-sm text-gray-400">Vælg datoer for at se prisen.</p>
+                </div>
+
+                <!-- Skjulte formfelter opdateret af JS -->
+                <input type="hidden" id="input-check-in"  name="check_in"  value="">
+                <input type="hidden" id="input-check-out" name="check_out" value="">
+
+                <!-- Gæsteformular -->
+                <form id="booking-form" method="post" action="/booking/opret"
+                      class="space-y-3" style="display:none">
+                    <input type="hidden" name="check_in"  id="form-check-in">
+                    <input type="hidden" name="check_out" id="form-check-out">
+
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Fulde navn *</label>
+                        <input type="text" name="guest_name" required
+                               class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm
+                                      focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">E-mail *</label>
+                        <input type="email" name="guest_email" required
+                               class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm
+                                      focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Telefon</label>
+                        <input type="tel" name="guest_phone"
+                               class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm
+                                      focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent">
+                    </div>
+
+                    <button type="submit"
+                            class="w-full bg-amber-500 hover:bg-amber-600 text-white py-3 rounded-xl
+                                   transition font-semibold text-sm shadow-sm">
+                        Send forespørgsel
+                    </button>
+                    <p class="text-xs text-gray-400 text-center">
+                        Du forpligter dig ikke til betaling endnu.
+                    </p>
+                </form>
+
+                <button id="btn-nulstil"
+                        onclick="nulstil()"
+                        style="display:none"
+                        class="w-full text-xs text-gray-400 hover:text-gray-600 underline">
+                    Nulstil datoer
                 </button>
-                <p class="text-xs text-gray-400 text-center">
-                    Du forpligter dig ikke til betaling endnu.
-                </p>
-            </form>
 
-            <button id="btn-nulstil"
-                    onclick="nulstil()"
-                    style="display:none"
-                    class="w-full text-xs text-gray-400 hover:text-gray-600 underline">
-                Nulstil datoer
-            </button>
+            </div><!-- /p-5 -->
         </div>
     </div>
 

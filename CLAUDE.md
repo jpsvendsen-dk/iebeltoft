@@ -1,7 +1,7 @@
 # Sommerhus Udlejningssystem — iebeltoft.dk
 
 ## Projekt-overblik
-Python-baseret udlejningssystem til sommerhus. Hostes på Railway.
+Python-baseret udlejningssystem til sommerhus. Hostes på Render.
 Domæne: **iebeltoft.dk**
 
 ---
