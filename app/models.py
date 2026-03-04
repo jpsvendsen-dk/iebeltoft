@@ -38,6 +38,16 @@ class SeasonPrice(Base):
     min_nights = Column(Integer, default=7)
 
 
+class Settings(Base):
+    """Systemindstillinger — singleton (id=1)."""
+    __tablename__ = "settings"
+
+    id = Column(Integer, primary_key=True, default=1)
+    admin_email = Column(String(200))
+    electricity_price_kwh = Column(Numeric(8, 2), default=2.65)
+    water_price_m3 = Column(Numeric(8, 2), default=65.00)
+
+
 class Booking(Base):
     __tablename__ = "bookings"
 
@@ -47,6 +57,10 @@ class Booking(Base):
     guest_name = Column(String(200), nullable=False)
     guest_email = Column(String(200), nullable=False)
     guest_phone = Column(String(50))
+    guest_address = Column(String(200))
+    guest_zip = Column(String(10))
+    guest_city = Column(String(100))
+    guest_remarks = Column(Text)  # Gæstens egne bemærkninger
 
     check_in = Column(Date, nullable=False)
     check_out = Column(Date, nullable=False)

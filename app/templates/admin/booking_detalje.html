@@ -41,6 +41,18 @@
                     <dt class="text-gray-400 text-xs mb-0.5">Modtaget</dt>
                     <dd class="text-gray-500">{{ booking.created_at.strftime("%d.%m.%Y %H:%M") if booking.created_at else '—' }}</dd>
                 </div>
+                {% if booking.guest_address %}
+                <div class="col-span-2">
+                    <dt class="text-gray-400 text-xs mb-0.5">Adresse</dt>
+                    <dd class="text-gray-800">{{ booking.guest_address }}, {{ booking.guest_zip }} {{ booking.guest_city }}</dd>
+                </div>
+                {% endif %}
+                {% if booking.guest_remarks %}
+                <div class="col-span-2">
+                    <dt class="text-gray-400 text-xs mb-0.5">Gæstens bemærkninger</dt>
+                    <dd class="text-gray-800 whitespace-pre-wrap">{{ booking.guest_remarks }}</dd>
+                </div>
+                {% endif %}
             </dl>
         </div>
 

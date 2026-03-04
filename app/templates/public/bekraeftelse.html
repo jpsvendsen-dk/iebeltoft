@@ -32,6 +32,18 @@
             <span class="text-gray-500">E-mail</span>
             <span class="font-medium">{{ booking.guest_email }}</span>
         </div>
+        {% if booking.guest_phone %}
+        <div class="flex justify-between text-sm">
+            <span class="text-gray-500">Telefon</span>
+            <span class="font-medium">{{ booking.guest_phone }}</span>
+        </div>
+        {% endif %}
+        {% if booking.guest_address %}
+        <div class="flex justify-between text-sm">
+            <span class="text-gray-500">Adresse</span>
+            <span class="font-medium">{{ booking.guest_address }}, {{ booking.guest_zip }} {{ booking.guest_city }}</span>
+        </div>
+        {% endif %}
         <div class="flex justify-between text-sm">
             <span class="text-gray-500">Booking-nr.</span>
             <span class="font-medium text-gray-400">#{{ booking.id }}</span>

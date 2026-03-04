@@ -1,0 +1,68 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Indstillinger{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-800 mb-2">Indstillinger</h1>
+<p class="text-sm text-gray-500 mb-6">Konfigurer e-mail notifikationer og forbrugspriser.</p>
+
+{% if gemt %}
+<div class="bg-green-50 border border-green-300 text-green-700 text-sm rounded-lg p-3 mb-6">
+    Indstillingerne er gemt.
+</div>
+{% endif %}
+
+<form method="post" action="/admin/indstillinger" class="space-y-6 max-w-lg">
+
+    <!-- E-mail -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+        <h2 class="font-semibold text-gray-700 mb-1">Notifikationsmail</h2>
+        <p class="text-xs text-gray-400 mb-4">
+            Denne adresse modtager en e-mail hver gang en gæst sender en bookingforespørgsel.
+            Kræver at <code class="bg-gray-100 px-1 rounded">RESEND_API_KEY</code> er sat i miljøvariablerne.
+        </p>
+        <label class="block text-sm font-medium text-gray-600 mb-1">Admin e-mail</label>
+        <input type="email" name="admin_email"
+               value="{{ settings.admin_email or '' }}"
+               placeholder="din@email.dk"
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                      focus:outline-none focus:ring-2 focus:ring-blue-400">
+    </div>
+
+    <!-- Forbrugspriser -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+        <h2 class="font-semibold text-gray-700 mb-1">Forbrugspriser</h2>
+        <p class="text-xs text-gray-400 mb-4">
+            Bruges til at beregne elforbrug og vandforbrug ved afslutning af ophold (fremtidig funktion).
+        </p>
+        <div class="space-y-4">
+            <div class="flex items-center gap-3">
+                <div class="flex-1">
+                    <label class="block text-sm font-medium text-gray-600 mb-1">El-pris pr. kWh</label>
+                    <div class="flex items-center gap-2">
+                        <input type="number" name="electricity_price_kwh" step="0.01" min="0"
+                               value="{{ settings.electricity_price_kwh or '2.65' }}"
+                               class="w-28 border border-gray-300 rounded-lg px-3 py-2 text-sm
+                                      focus:outline-none focus:ring-2 focus:ring-blue-400">
+                        <span class="text-sm text-gray-400">kr. / kWh</span>
+                    </div>
+                </div>
+                <div class="flex-1">
+                    <label class="block text-sm font-medium text-gray-600 mb-1">Vandpris pr. m³</label>
+                    <div class="flex items-center gap-2">
+                        <input type="number" name="water_price_m3" step="0.01" min="0"
+                               value="{{ settings.water_price_m3 or '65.00' }}"
+                               class="w-28 border border-gray-300 rounded-lg px-3 py-2 text-sm
+                                      focus:outline-none focus:ring-2 focus:ring-blue-400">
+                        <span class="text-sm text-gray-400">kr. / m³</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button type="submit"
+            class="bg-blue-600 text-white px-8 py-2.5 rounded-lg hover:bg-blue-700 transition font-medium text-sm">
+        Gem indstillinger
+    </button>
+</form>
+{% endblock %}

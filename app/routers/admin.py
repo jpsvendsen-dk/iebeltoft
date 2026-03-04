@@ -263,6 +263,9 @@ async def opret_booking_admin(
     guest_name: str = Form(...),
     guest_email: str = Form(...),
     guest_phone: str = Form(""),
+    guest_address: str = Form(""),
+    guest_zip: str = Form(""),
+    guest_city: str = Form(""),
     notes: str = Form(""),
     status: str = Form("confirmed"),
     db: Session = Depends(get_db),
@@ -284,7 +287,8 @@ async def opret_booking_admin(
             "fejl": "Perioden overlapper med en eksisterende booking.",
             "check_in": check_in, "check_out": check_out,
             "guest_name": guest_name, "guest_email": guest_email,
-            "guest_phone": guest_phone, "notes": notes,
+            "guest_phone": guest_phone, "guest_address": guest_address,
+            "guest_zip": guest_zip, "guest_city": guest_city, "notes": notes,
         })
 
     resultat = beregn_pris(fra, til, db)
@@ -292,6 +296,9 @@ async def opret_booking_admin(
         guest_name=guest_name.strip(),
         guest_email=guest_email.strip(),
         guest_phone=guest_phone.strip(),
+        guest_address=guest_address.strip() or None,
+        guest_zip=guest_zip.strip() or None,
+        guest_city=guest_city.strip() or None,
         check_in=fra,
         check_out=til,
         total_price=resultat["total"],
@@ -355,3 +362,55 @@ async def slet_booking(request: Request, booking_id: int, db: Session = Depends(
         db.commit()
 
     return RedirectResponse(url="/admin/bookinger", status_code=303)
+
+
+# ── Indstillinger ─────────────────────────────────────────────────────────────
+
+@router.get("/indstillinger", response_class=HTMLResponse)
+async def indstillinger_side(request: Request, db: Session = Depends(get_db)):
+    redirect = kræv_login(request)
+    if redirect:
+        return redirect
+
+    settings = db.query(models.Settings).filter(models.Settings.id == 1).first()
+    if not settings:
+        settings = models.Settings(id=1, electricity_price_kwh=Decimal("2.65"), water_price_m3=Decimal("65.00"))
+        db.add(settings)
+        db.commit()
+
+    return templates.TemplateResponse("admin/indstillinger.html", {
+        "request": request,
+        "settings": settings,
+        "gemt": request.query_params.get("gemt"),
+    })
+
+
+@router.post("/indstillinger")
+async def gem_indstillinger(
+    request: Request,
+    admin_email: str = Form(""),
+    electricity_price_kwh: str = Form("2.65"),
+    water_price_m3: str = Form("65.00"),
+    db: Session = Depends(get_db),
+):
+    redirect = kræv_login(request)
+    if redirect:
+        return redirect
+
+    settings = db.query(models.Settings).filter(models.Settings.id == 1).first()
+    if not settings:
+        settings = models.Settings(id=1)
+        db.add(settings)
+
+    settings.admin_email = admin_email.strip() or None
+    try:
+        settings.electricity_price_kwh = Decimal(electricity_price_kwh.replace(",", "."))
+    except InvalidOperation:
+        settings.electricity_price_kwh = Decimal("2.65")
+    try:
+        settings.water_price_m3 = Decimal(water_price_m3.replace(",", "."))
+    except InvalidOperation:
+        settings.water_price_m3 = Decimal("65.00")
+
+    db.commit()
+    return RedirectResponse(url="/admin/indstillinger?gemt=1", status_code=303)

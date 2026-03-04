@@ -72,6 +72,8 @@ def generer_gaeste_kalender(db: Session, maaneder_frem: int = 14) -> list[dict]:
                 status = "fortid"
             elif dag in optagne:
                 status = "optaget"
+            elif saeson is None:
+                status = "optaget"  # Ingen sæson defineret = ikke mulig at booke
             else:
                 status = "ledig"
 

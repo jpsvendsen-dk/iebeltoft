@@ -8,6 +8,7 @@ from app import models
 from app.services.kalender import generer_gaeste_kalender, tjek_overlap
 from app.services.priser import beregn_pris
 from app.services.saeson import SAESON_FARVER
+from app.services.email import send_booking_notification
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -65,7 +66,11 @@ async def opret_booking(
     check_out: str = Form(...),
     guest_name: str = Form(...),
     guest_email: str = Form(...),
-    guest_phone: str = Form(""),
+    guest_phone: str = Form(...),
+    guest_address: str = Form(...),
+    guest_zip: str = Form(...),
+    guest_city: str = Form(...),
+    guest_remarks: str = Form(""),
     db: Session = Depends(get_db),
 ):
     try:
@@ -86,6 +91,10 @@ async def opret_booking(
         guest_name=guest_name.strip(),
         guest_email=guest_email.strip(),
         guest_phone=guest_phone.strip(),
+        guest_address=guest_address.strip(),
+        guest_zip=guest_zip.strip(),
+        guest_city=guest_city.strip(),
+        guest_remarks=guest_remarks.strip(),
         check_in=fra,
         check_out=til,
         total_price=resultat["total"],
@@ -94,6 +103,11 @@ async def opret_booking(
     db.add(booking)
     db.commit()
     db.refresh(booking)
+
+    # Send notifikationsmail til admin
+    settings = db.query(models.Settings).filter(models.Settings.id == 1).first()
+    if settings and settings.admin_email:
+        send_booking_notification(booking, settings.admin_email)
 
     return RedirectResponse(url=f"/booking/bekraeftelse/{booking.id}", status_code=303)
 
