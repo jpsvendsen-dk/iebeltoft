@@ -8,9 +8,7 @@ services:
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: iebeltoft-db
-          property: connectionString
+        sync: false          # Sættes manuelt til Neon.tech connection string
       - key: ADMIN_PASSWORD
         sync: false          # Sættes manuelt i Render dashboard
       - key: SECRET_KEY
@@ -26,8 +24,3 @@ services:
       - key: ADMIN_EMAIL
         sync: false
 
-databases:
-  - name: iebeltoft-db
-    plan: free
-    databaseName: iebeltoft
-    user: iebeltoft
