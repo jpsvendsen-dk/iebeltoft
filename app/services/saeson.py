@@ -55,17 +55,27 @@ def generer_aarsoverblik(aar: int, db: Session) -> list[dict]:
                 "dato": dag,
                 "dag_nr": dag.day,
                 "ugedag": dag.weekday(),  # 0=man, 6=søn
+                "uge_nr": dag.isocalendar()[1],
                 "saeson": saeson,
                 "bg": farver["bg"],
                 "text": farver["text"],
             })
             dag += datetime.timedelta(days=1)
 
+        # Byg uge-struktur: liste af uger, hver med uge_nr + 7 slots (None = tom)
+        uger = []
+        for dag_dict in dage:
+            if dag_dict["ugedag"] == 0 or not uger:
+                uger.append({"uge_nr": dag_dict["uge_nr"], "dage": [None] * dag_dict["ugedag"] + [dag_dict]})
+            else:
+                uger[-1]["dage"].append(dag_dict)
+        if uger and len(uger[-1]["dage"]) < 7:
+            uger[-1]["dage"] += [None] * (7 - len(uger[-1]["dage"]))
+
         maaneder.append({
             "nr": maaned_nr,
             "navn": foerste_dag.strftime("%B").capitalize(),
-            "dage": dage,
-            "start_ugedag": foerste_dag.weekday(),  # til tom-celler i gitteret
+            "uger": uger,
         })
 
     return maaneder
