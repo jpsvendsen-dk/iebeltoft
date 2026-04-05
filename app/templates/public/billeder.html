@@ -9,22 +9,92 @@
     <p class="text-gray-500 text-sm">Kløverskrænten 13, 8400 Ebeltoft</p>
 </div>
 
-{% if billeder %}
-<div class="columns-1 sm:columns-2 lg:columns-3 gap-4 space-y-0">
-    {% for b in billeder %}
-    <div class="break-inside-avoid mb-4">
-        <div class="bg-white rounded-xl overflow-hidden shadow-sm border border-stone-100">
-            <img src="{{ b.url }}"
-                 alt="Billede fra sommerhuset"
-                 class="w-full object-cover"
-                 loading="lazy">
-            {% if b.dato_str %}
-            <div class="px-3 py-2 text-xs text-gray-400">{{ b.dato_str }}</div>
-            {% endif %}
-        </div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Lightbox -->
+<div id="lightbox"
+     class="fixed inset-0 z-50 bg-black/90 hidden items-center justify-center"
+     onclick="lukkLightbox()">
+    <button onclick="skiftBillede(-1); event.stopPropagation()"
+            class="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 text-white text-4xl
+                   leading-none w-12 h-12 flex items-center justify-center
+                   hover:text-amber-400 transition select-none">&#8592;</button>
+    <div class="flex flex-col items-center max-w-[95vw] max-h-[95vh]"
+         onclick="event.stopPropagation()">
+        <img id="lb-img" src="" alt=""
+             class="max-w-[95vw] max-h-[85vh] object-contain rounded-lg shadow-2xl">
+        <p id="lb-dato" class="text-gray-400 text-sm mt-3"></p>
     </div>
-    {% endfor %}
+    <button onclick="skiftBillede(1); event.stopPropagation()"
+            class="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 text-white text-4xl
+                   leading-none w-12 h-12 flex items-center justify-center
+                   hover:text-amber-400 transition select-none">&#8594;</button>
+    <button onclick="lukkLightbox()"
+            class="absolute top-4 right-4 text-gray-400 hover:text-white text-3xl leading-none">&#x2715;</button>
 </div>
+
+{% if billeder %}
+<script>
+const BILLEDER = [
+    {% for b in billeder %}
+    { url: "{{ b.url }}", dato: "{{ b.dato_str }}" },
+    {% endfor %}
+];
+let aktivt = 0;
+
+function aabLightbox(i) {
+    aktivt = i;
+    visBillede();
+    const lb = document.getElementById('lightbox');
+    lb.classList.remove('hidden');
+    lb.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+}
+function lukkLightbox() {
+    const lb = document.getElementById('lightbox');
+    lb.classList.add('hidden');
+    lb.classList.remove('flex');
+    document.body.style.overflow = '';
+}
+function skiftBillede(retning) {
+    aktivt = (aktivt + retning + BILLEDER.length) % BILLEDER.length;
+    visBillede();
+}
+function visBillede() {
+    document.getElementById('lb-img').src = BILLEDER[aktivt].url;
+    document.getElementById('lb-dato').textContent = BILLEDER[aktivt].dato;
+}
+document.addEventListener('keydown', e => {
+    const lb = document.getElementById('lightbox');
+    if (lb.classList.contains('hidden')) return;
+    if (e.key === 'ArrowLeft') skiftBillede(-1);
+    if (e.key === 'ArrowRight') skiftBillede(1);
+    if (e.key === 'Escape') lukkLightbox();
+});
+</script>
+
+<!-- Galleri — max-w-7xl for bred visning -->
+<div class="-mx-4 px-4 max-w-7xl mx-auto">
+    <div class="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-3">
+        {% for b in billeder %}
+        <div class="break-inside-avoid mb-3">
+            <div class="bg-white rounded-xl overflow-hidden shadow-sm border border-stone-100
+                        cursor-pointer hover:shadow-md transition group"
+                 onclick="aabLightbox({{ loop.index0 }})">
+                <img src="{{ b.url }}"
+                     alt="Billede fra sommerhuset"
+                     class="w-full object-cover group-hover:brightness-95 transition"
+                     loading="lazy">
+                {% if b.dato_str %}
+                <div class="px-3 py-2 text-xs text-gray-400">{{ b.dato_str }}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
 {% else %}
 <div class="text-center py-24 text-gray-400">
     <div class="text-5xl mb-4">📷</div>
