@@ -67,7 +67,7 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
 # ── Sæsonintervaller ─────────────────────────────────────────────────────────
 
 @router.get("/saesoner", response_class=HTMLResponse)
-async def saesoner(request: Request, aar: int = None, db: Session = Depends(get_db)):
+async def saesoner(request: Request, aar: int = None, rediger_id: int = None, db: Session = Depends(get_db)):
     redirect = kræv_login(request)
     if redirect:
         return redirect
@@ -81,6 +81,12 @@ async def saesoner(request: Request, aar: int = None, db: Session = Depends(get_
 
     aarsoverblik = generer_aarsoverblik(aar, db)
 
+    rediger_interval = None
+    if rediger_id:
+        rediger_interval = db.query(models.SeasonInterval).filter(
+            models.SeasonInterval.id == rediger_id
+        ).first()
+
     return templates.TemplateResponse("admin/saesoner.html", {
         "request": request,
         "aktiv_side": "saesoner",
@@ -89,6 +95,7 @@ async def saesoner(request: Request, aar: int = None, db: Session = Depends(get_
         "aar": aar,
         "saeson_farver": SAESON_FARVER,
         "saeson_valg": ["A", "B", "C", "D", "E"],
+        "rediger_interval": rediger_interval,
     })
 
 
@@ -118,6 +125,34 @@ async def opret_interval(
     db.commit()
 
     aar = fra.year
+    return RedirectResponse(url=f"/admin/saesoner?aar={aar}", status_code=303)
+
+
+@router.post("/saesoner/{interval_id}/opdater")
+async def opdater_interval(
+    request: Request,
+    interval_id: int,
+    date_from: str = Form(...),
+    date_to: str = Form(...),
+    season: str = Form(...),
+    label: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    redirect = kræv_login(request)
+    if redirect:
+        return redirect
+
+    interval = db.query(models.SeasonInterval).filter(
+        models.SeasonInterval.id == interval_id
+    ).first()
+    if interval:
+        interval.date_from = datetime.date.fromisoformat(date_from)
+        interval.date_to = datetime.date.fromisoformat(date_to)
+        interval.season = models.SeasonEnum(season)
+        interval.label = label.strip() or None
+        db.commit()
+
+    aar = datetime.date.fromisoformat(date_from).year
     return RedirectResponse(url=f"/admin/saesoner?aar={aar}", status_code=303)
 
 

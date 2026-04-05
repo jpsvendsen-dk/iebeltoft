@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Projekt
 
 Sommerhus udlejningssystem til **iebeltoft.dk** (Kløverskrænten 13, 8400 Ebeltoft).
-Hostes på **Render** (app + PostgreSQL). Lokalt bruges SQLite.
+Hostes på **Render** (app) + **Neon.tech** (PostgreSQL, gratis). Lokalt bruges SQLite.
 
 ---
 
@@ -35,7 +35,7 @@ Ingen build-step — Tailwind CSS køres fra CDN.
 | Framework | FastAPI |
 | Frontend | Jinja2 templates + HTMX (ingen JS-framework) |
 | CSS | Tailwind CSS via CDN |
-| Database | SQLite lokalt / PostgreSQL på Render |
+| Database | SQLite lokalt / Neon.tech PostgreSQL i produktion |
 | ORM | SQLAlchemy 2.x (sync), `Base.metadata.create_all` ved opstart |
 | DB-migration | Startup-ALTER TABLE i `app/main.py` (ikke Alembic, selvom det er i requirements) |
 | Auth | Starlette SessionMiddleware + `ADMIN_PASSWORD` env-var |
@@ -120,8 +120,8 @@ Pris = `ugepris ÷ 7 × antal_nætter` per sæson (ophold kan spænde over flere
 ## Miljøvariabler (.env)
 
 ```
-DATABASE_URL=sqlite:///./sommerhus.db   # PostgreSQL-URL på Render (sættes automatisk)
-ADMIN_PASSWORD=...
+DATABASE_URL=sqlite:///./sommerhus.db   # Lokalt SQLite. På Render: Neon.tech postgresql:// URL (sættes manuelt i Render dashboard)
+ADMIN_PASSWORD=skift-mig               # Fallback hvis ikke sat. Sæt altid manuelt i Render dashboard!
 SECRET_KEY=...                           # Session-kryptering
 RESEND_API_KEY=...                       # Kræver verificeret domæne iebeltoft.dk i Resend
 STRIPE_SECRET_KEY=...                    # Endnu ikke implementeret
@@ -132,8 +132,9 @@ STRIPE_WEBHOOK_SECRET=...
 
 ## Deploy (Render)
 
-`render.yaml` definerer Blueprint med web-service + PostgreSQL. Push til `master` på GitHub trigger automatisk deploy.
-PostgreSQL-URL leveres som `DATABASE_URL` env-var. `app/database.py` retter `postgres://` → `postgresql://` automatisk.
+`render.yaml` definerer Blueprint med web-service. Push til `master` på GitHub trigger automatisk deploy.
+PostgreSQL hostes på **Neon.tech** (gratis tier). `DATABASE_URL` sættes manuelt i Render Dashboard til Neon's connection string.
+`app/database.py` retter `postgres://` → `postgresql://` automatisk.
 
 ---
 

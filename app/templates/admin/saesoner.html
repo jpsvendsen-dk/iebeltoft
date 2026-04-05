@@ -63,7 +63,7 @@
         <div class="space-y-2">
             {% for iv in intervaller %}
             {% set farve = saeson_farver[iv.season.value] %}
-            <div class="bg-white rounded-lg shadow-sm p-3 flex items-center justify-between">
+            <div class="bg-white rounded-lg shadow-sm p-3 flex items-center justify-between {% if rediger_interval and rediger_interval.id == iv.id %}ring-2 ring-blue-400{% endif %}">
                 <div class="flex items-center gap-3">
                     <span class="w-8 h-8 rounded-full {{ farve.bg }} {{ farve.text }} flex items-center justify-center font-bold text-sm">
                         {{ iv.season.value }}
@@ -77,13 +77,19 @@
                         {% endif %}
                     </div>
                 </div>
-                <form method="post" action="/admin/saesoner/{{ iv.id }}/slet"
-                      onsubmit="return confirm('Slet dette interval?')">
-                    <button type="submit"
-                            class="text-xs text-red-500 hover:text-red-700 hover:underline">
-                        Slet
-                    </button>
-                </form>
+                <div class="flex items-center gap-3">
+                    <a href="/admin/saesoner?rediger_id={{ iv.id }}&aar={{ aar }}"
+                       class="text-xs text-blue-500 hover:text-blue-700 hover:underline">
+                        Rediger
+                    </a>
+                    <form method="post" action="/admin/saesoner/{{ iv.id }}/slet"
+                          onsubmit="return confirm('Slet dette interval?')">
+                        <button type="submit"
+                                class="text-xs text-red-500 hover:text-red-700 hover:underline">
+                            Slet
+                        </button>
+                    </form>
+                </div>
             </div>
             {% endfor %}
         </div>
@@ -92,21 +98,33 @@
         {% endif %}
     </div>
 
-    <!-- Tilføj nyt interval -->
+    <!-- Tilføj / Rediger interval -->
     <div>
+        {% if rediger_interval %}
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-semibold text-gray-700">Rediger interval</h2>
+            <a href="/admin/saesoner?aar={{ aar }}"
+               class="text-xs text-gray-400 hover:text-gray-600 hover:underline">Annuller</a>
+        </div>
+        <form method="post" action="/admin/saesoner/{{ rediger_interval.id }}/opdater"
+              class="bg-white rounded-xl shadow-sm p-5 space-y-4 ring-2 ring-blue-400">
+        {% else %}
         <h2 class="text-lg font-semibold text-gray-700 mb-3">Tilføj interval</h2>
         <form method="post" action="/admin/saesoner/opret"
               class="bg-white rounded-xl shadow-sm p-5 space-y-4">
+        {% endif %}
 
             <div class="grid grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Fra dato</label>
                     <input type="date" name="date_from" required
+                           value="{{ rediger_interval.date_from.isoformat() if rediger_interval else '' }}"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Til dato</label>
                     <input type="date" name="date_to" required
+                           value="{{ rediger_interval.date_to.isoformat() if rediger_interval else '' }}"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
                 </div>
             </div>
@@ -118,7 +136,9 @@
                     {% set farve = saeson_farver[bogstav] %}
                     <label class="cursor-pointer">
                         <input type="radio" name="season" value="{{ bogstav }}" class="sr-only peer"
-                               {% if bogstav == 'A' %}checked{% endif %}>
+                               {% if rediger_interval %}
+                               {% if bogstav == rediger_interval.season.value %}checked{% endif %}
+                               {% elif bogstav == 'A' %}checked{% endif %}>
                         <div class="text-center py-2 rounded-lg border-2 border-transparent
                                     peer-checked:border-gray-800 {{ farve.bg }} {{ farve.text }}
                                     font-bold text-sm select-none">
@@ -134,13 +154,14 @@
                     Navn/label <span class="font-normal text-gray-400">(valgfrit, fx "Sommer 2025")</span>
                 </label>
                 <input type="text" name="label" maxlength="100"
+                       value="{{ rediger_interval.label if rediger_interval and rediger_interval.label else '' }}"
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                        placeholder="Sommer 2025">
             </div>
 
             <button type="submit"
-                    class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition font-medium text-sm">
-                Tilføj interval
+                    class="w-full {% if rediger_interval %}bg-green-600 hover:bg-green-700{% else %}bg-blue-600 hover:bg-blue-700{% endif %} text-white py-2 rounded-lg transition font-medium text-sm">
+                {% if rediger_interval %}Gem ændringer{% else %}Tilføj interval{% endif %}
             </button>
         </form>
     </div>

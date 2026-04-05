@@ -23,11 +23,13 @@ async def forside(request: Request):
 async def booking_side(request: Request, db: Session = Depends(get_db)):
     maaneder = generer_gaeste_kalender(db)
     saeson_priser = db.query(models.SeasonPrice).order_by(models.SeasonPrice.season).all()
+    settings = db.query(models.Settings).filter(models.Settings.id == 1).first()
     return templates.TemplateResponse("public/booking.html", {
         "request": request,
         "maaneder": maaneder,
         "saeson_farver": SAESON_FARVER,
         "saeson_priser": saeson_priser,
+        "settings": settings,
     })
 
 
