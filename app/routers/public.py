@@ -1,4 +1,5 @@
 import datetime
+import pathlib
 from fastapi import APIRouter, Request, Form, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -9,6 +10,7 @@ from app.services.kalender import generer_gaeste_kalender, tjek_overlap
 from app.services.priser import beregn_pris
 from app.services.saeson import SAESON_FARVER
 from app.services.email import send_booking_notification
+from app.utils import DANSKE_MAANEDER
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -112,6 +114,48 @@ async def opret_booking(
         send_booking_notification(booking, settings.admin_email)
 
     return RedirectResponse(url=f"/booking/bekraeftelse/{booking.id}", status_code=303)
+
+
+@router.get("/billeder", response_class=HTMLResponse)
+async def billeder_side(request: Request):
+    mappe = pathlib.Path("static/MoreImages")
+    tilladte = {".jpg", ".jpeg", ".png"}
+    billeder = []
+    if mappe.exists():
+        from PIL import Image, ExifTags
+        for fil in sorted(mappe.iterdir()):
+            if fil.suffix.lower() not in tilladte or fil.name.startswith("."):
+                continue
+            dato = None
+            try:
+                with Image.open(fil) as img:
+                    exif = img._getexif()
+                    if exif:
+                        for tag_id, val in exif.items():
+                            if ExifTags.TAGS.get(tag_id) == "DateTimeOriginal":
+                                dato = datetime.datetime.strptime(val, "%Y:%m:%d %H:%M:%S").date()
+                                break
+            except Exception:
+                pass
+            if not dato:
+                try:
+                    dato = datetime.date.fromtimestamp(fil.stat().st_mtime)
+                except Exception:
+                    pass
+            dato_str = ""
+            if dato:
+                dato_str = f"{dato.day}. {DANSKE_MAANEDER[dato.month]} {dato.year}"
+            billeder.append({
+                "filnavn": fil.name,
+                "url": f"/static/MoreImages/{fil.name}",
+                "dato": dato,
+                "dato_str": dato_str,
+            })
+        billeder.sort(key=lambda b: b["dato"] or datetime.date.min, reverse=True)
+    return templates.TemplateResponse("public/billeder.html", {
+        "request": request,
+        "billeder": billeder,
+    })
 
 
 @router.get("/booking/bekraeftelse/{booking_id}", response_class=HTMLResponse)

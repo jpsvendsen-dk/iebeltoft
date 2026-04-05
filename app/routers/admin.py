@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, Form
+from fastapi import APIRouter, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -9,6 +9,11 @@ from app.auth import kræv_login, ADMIN_PASSWORD
 from app.services.saeson import generer_aarsoverblik, SAESON_FARVER
 from decimal import Decimal, InvalidOperation
 import datetime
+import os
+import pathlib
+from typing import List
+from PIL import Image, ExifTags
+import io
 
 router = APIRouter(prefix="/admin")
 templates = Jinja2Templates(directory="app/templates")
@@ -449,3 +454,156 @@ async def gem_indstillinger(
 
     db.commit()
     return RedirectResponse(url="/admin/indstillinger?gemt=1", status_code=303)
+
+
+# ── Billeder ──────────────────────────────────────────────────────────────────
+
+BILLEDER_MAPPE = pathlib.Path("static/MoreImages")
+TILLADTE_ENDELSER = {".jpg", ".jpeg", ".png", ".heic", ".heif"}
+
+
+def _hent_billeder() -> list[dict]:
+    """Returnerer sorteret liste af billeder i MoreImages mappen med dato."""
+    if not BILLEDER_MAPPE.exists():
+        return []
+    billeder = []
+    for fil in sorted(BILLEDER_MAPPE.iterdir()):
+        if fil.suffix.lower() not in TILLADTE_ENDELSER or fil.name.startswith("."):
+            continue
+        dato = _hent_dato(fil)
+        billeder.append({
+            "filnavn": fil.name,
+            "url": f"/static/MoreImages/{fil.name}",
+            "dato": dato,
+            "dato_str": _format_dato(dato),
+        })
+    billeder.sort(key=lambda b: b["dato"] or datetime.date.min, reverse=True)
+    return billeder
+
+
+def _hent_dato(fil: pathlib.Path) -> datetime.date | None:
+    """Henter dato fra EXIF, eller filer mtime som fallback."""
+    try:
+        with Image.open(fil) as img:
+            exif = img._getexif()
+            if exif:
+                for tag_id, val in exif.items():
+                    tag = ExifTags.TAGS.get(tag_id, "")
+                    if tag == "DateTimeOriginal":
+                        return datetime.datetime.strptime(val, "%Y:%m:%d %H:%M:%S").date()
+    except Exception:
+        pass
+    try:
+        ts = fil.stat().st_mtime
+        return datetime.date.fromtimestamp(ts)
+    except Exception:
+        return None
+
+
+def _format_dato(dato: datetime.date | None) -> str:
+    if not dato:
+        return ""
+    maaneder = ["januar","februar","marts","april","maj","juni",
+                "juli","august","september","oktober","november","december"]
+    return f"{dato.day}. {maaneder[dato.month - 1]} {dato.year}"
+
+
+@router.get("/billeder", response_class=HTMLResponse)
+async def billeder_admin(request: Request):
+    redirect = kræv_login(request)
+    if redirect:
+        return redirect
+    billeder = _hent_billeder()
+    return templates.TemplateResponse("admin/billeder.html", {
+        "request": request,
+        "aktiv_side": "billeder",
+        "billeder": billeder,
+        "antal": len(billeder),
+    })
+
+
+@router.post("/billeder/upload")
+async def upload_billeder(
+    request: Request,
+    filer: List[UploadFile] = File(...),
+):
+    redirect = kræv_login(request)
+    if redirect:
+        return redirect
+
+    BILLEDER_MAPPE.mkdir(parents=True, exist_ok=True)
+    gemt = 0
+    fejl = []
+
+    for fil in filer:
+        endelse = pathlib.Path(fil.filename).suffix.lower()
+        if endelse not in TILLADTE_ENDELSER:
+            fejl.append(fil.filename)
+            continue
+        try:
+            indhold = await fil.read()
+            img = Image.open(io.BytesIO(indhold))
+
+            # Bevar EXIF-data
+            exif_bytes = None
+            try:
+                exif_bytes = img.info.get("exif")
+            except Exception:
+                pass
+
+            # Korriger rotation fra EXIF
+            try:
+                for tag_id, val in (img._getexif() or {}).items():
+                    if ExifTags.TAGS.get(tag_id) == "Orientation":
+                        if val == 3:
+                            img = img.rotate(180, expand=True)
+                        elif val == 6:
+                            img = img.rotate(270, expand=True)
+                        elif val == 8:
+                            img = img.rotate(90, expand=True)
+                        break
+            except Exception:
+                pass
+
+            # Konverter til RGB (håndterer PNG/HEIC med alpha)
+            if img.mode not in ("RGB", "L"):
+                img = img.convert("RGB")
+
+            # Skalér ned til max 1920px bredde
+            maks = 1920
+            if img.width > maks:
+                ratio = maks / img.width
+                img = img.resize((maks, int(img.height * ratio)), Image.LANCZOS)
+
+            # Gem som JPEG
+            filnavn = pathlib.Path(fil.filename).stem + ".jpg"
+            # Sikr unikt filnavn
+            dest = BILLEDER_MAPPE / filnavn
+            tæller = 1
+            while dest.exists():
+                dest = BILLEDER_MAPPE / f"{pathlib.Path(fil.filename).stem}_{tæller}.jpg"
+                tæller += 1
+
+            gem_kwargs = {"format": "JPEG", "quality": 82, "optimize": True}
+            if exif_bytes:
+                gem_kwargs["exif"] = exif_bytes
+            img.save(dest, **gem_kwargs)
+            gemt += 1
+        except Exception as e:
+            fejl.append(fil.filename)
+
+    qs = f"gemt={gemt}"
+    if fejl:
+        qs += f"&fejl={len(fejl)}"
+    return RedirectResponse(url=f"/admin/billeder?{qs}", status_code=303)
+
+
+@router.post("/billeder/{filnavn}/slet")
+async def slet_billede(request: Request, filnavn: str):
+    redirect = kræv_login(request)
+    if redirect:
+        return redirect
+    fil = BILLEDER_MAPPE / filnavn
+    if fil.exists() and fil.suffix.lower() in TILLADTE_ENDELSER:
+        fil.unlink()
+    return RedirectResponse(url="/admin/billeder", status_code=303)

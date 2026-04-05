@@ -1,0 +1,76 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Billeder{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">Billeder</h1>
+    <a href="/billeder" target="_blank"
+       class="text-sm text-blue-600 hover:underline">Se billedsiden →</a>
+</div>
+
+{% if request.query_params.get('gemt') %}
+<div class="bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-5 text-sm text-green-800">
+    {{ request.query_params.get('gemt') }} billede(r) uploadet og weboptimeret.
+    {% if request.query_params.get('fejl') %}
+    {{ request.query_params.get('fejl') }} fil(er) kunne ikke behandles.
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Upload-formular -->
+<div class="bg-white rounded-xl shadow-sm p-6 mb-8">
+    <h2 class="text-base font-semibold text-gray-700 mb-4">Upload nye billeder</h2>
+    <form method="post" action="/admin/billeder/upload" enctype="multipart/form-data" class="space-y-4">
+        <div>
+            <label class="block text-sm font-medium text-gray-600 mb-2">
+                Vælg billeder <span class="font-normal text-gray-400">(JPG, PNG — weboptimeres automatisk)</span>
+            </label>
+            <input type="file" name="filer" multiple accept="image/*"
+                   class="block w-full text-sm text-gray-600
+                          file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0
+                          file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700
+                          hover:file:bg-blue-100 cursor-pointer">
+        </div>
+        <button type="submit"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition">
+            Upload og optimer
+        </button>
+    </form>
+    <p class="text-xs text-gray-400 mt-3">
+        Billeder skaleres til max 1920 px bredde og gemmes som JPEG (kvalitet 82).
+        Datoen hentes automatisk fra billedets EXIF-data (fotograferingstidspunkt).
+    </p>
+</div>
+
+<!-- Billedoversigt -->
+<h2 class="text-base font-semibold text-gray-700 mb-3">Uploadede billeder ({{ antal }})</h2>
+
+{% if billeder %}
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+    {% for b in billeder %}
+    <div class="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100">
+        <img src="{{ b.url }}" alt="{{ b.filnavn }}"
+             class="w-full h-36 object-cover" loading="lazy">
+        <div class="p-2">
+            {% if b.dato_str %}
+            <div class="text-xs text-gray-500 mb-1">{{ b.dato_str }}</div>
+            {% endif %}
+            <div class="text-xs text-gray-400 truncate mb-2" title="{{ b.filnavn }}">{{ b.filnavn }}</div>
+            <form method="post" action="/admin/billeder/{{ b.filnavn }}/slet"
+                  onsubmit="return confirm('Slet {{ b.filnavn }}?')">
+                <button type="submit"
+                        class="text-xs text-red-500 hover:text-red-700 hover:underline">
+                    Slet
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-16 text-gray-400 bg-white rounded-xl border border-gray-100">
+    <div class="text-4xl mb-3">📷</div>
+    <p class="text-sm">Ingen billeder endnu. Upload det første billede ovenfor.</p>
+</div>
+{% endif %}
+{% endblock %}
