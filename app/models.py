@@ -46,6 +46,7 @@ class Settings(Base):
     admin_email = Column(String(200))
     electricity_price_kwh = Column(Numeric(8, 2), default=2.65)
     water_price_m3 = Column(Numeric(8, 2), default=65.00)
+    saturday_only = Column(Integer, default=1)  # 1 = kun lørdag-til-lørdag
 
 
 class Booking(Base):

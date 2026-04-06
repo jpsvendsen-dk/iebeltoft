@@ -39,6 +39,25 @@
 </div>
 {% endif %}
 
+<!-- ── Fejlbeskeder ───────────────────────────────────────────────────────── -->
+{% if fejl == 'lordag' %}
+<div class="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 mb-4 text-sm">
+    Bookinger kan kun starte og slutte på en <strong>lørdag</strong>. Vælg venligst en lørdag som ankomst- og afrejsedag.
+</div>
+{% elif fejl == 'optaget' %}
+<div class="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 mb-4 text-sm">
+    Den valgte periode er desværre optaget. Vælg en anden periode.
+</div>
+{% endif %}
+
+<!-- ── Lørdag-info ─────────────────────────────────────────────────────────── -->
+{% if saturday_only %}
+<div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 flex items-center gap-3">
+    <span class="text-amber-500 text-lg">📅</span>
+    <p class="text-sm text-amber-800">Ophold kan kun bookes fra <strong>lørdag til lørdag</strong>.</p>
+</div>
+{% endif %}
+
 <!-- ── Forbrugspriser ──────────────────────────────────────────────────────── -->
 {% if settings and (settings.electricity_price_kwh or settings.water_price_m3) %}
 <div class="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 mb-6 flex flex-wrap gap-x-6 gap-y-1 items-center">
@@ -285,6 +304,9 @@ let checkIn = null;
 let checkOut = null;
 let aktuelSide = 0;
 const MAANEDER_PR_SIDE = 2;
+const KUN_LORDAG = {{ 'true' if saturday_only else 'false' }};
+
+const erLordag = dato => new Date(dato + 'T00:00:00').getDay() === 6;
 
 const alle = () => document.querySelectorAll('.dag-celle');
 
@@ -384,6 +406,7 @@ for (const el of alle()) {
         const dato   = el.dataset.dato;
         const status = el.dataset.status;
         if (status !== 'ledig') return;
+        if (KUN_LORDAG && !erLordag(dato)) return;
         if (!checkIn || checkOut) {
             checkIn  = dato;
             checkOut = null;

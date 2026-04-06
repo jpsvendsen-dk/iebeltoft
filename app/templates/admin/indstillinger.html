@@ -60,6 +60,23 @@
         </div>
     </div>
 
+    <!-- Bookingsregler -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+        <h2 class="font-semibold text-gray-700 mb-1">Bookingsregler</h2>
+        <p class="text-xs text-gray-400 mb-4">
+            Styr hvilke dage gæster må booke ind og ud.
+        </p>
+        <label class="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" name="saturday_only" value="1"
+                   {% if settings.saturday_only %}checked{% endif %}
+                   class="w-4 h-4 rounded border-gray-300 accent-blue-600">
+            <div>
+                <div class="text-sm font-medium text-gray-700">Kun lørdag til lørdag</div>
+                <div class="text-xs text-gray-400 mt-0.5">Gæster kan kun vælge lørdag som ankomst- og afrejsedag</div>
+            </div>
+        </label>
+    </div>
+
     <button type="submit"
             class="bg-blue-600 text-white px-8 py-2.5 rounded-lg hover:bg-blue-700 transition font-medium text-sm">
         Gem indstillinger

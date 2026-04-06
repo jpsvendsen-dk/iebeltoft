@@ -414,7 +414,7 @@ async def indstillinger_side(request: Request, db: Session = Depends(get_db)):
 
     settings = db.query(models.Settings).filter(models.Settings.id == 1).first()
     if not settings:
-        settings = models.Settings(id=1, electricity_price_kwh=Decimal("2.65"), water_price_m3=Decimal("65.00"))
+        settings = models.Settings(id=1, electricity_price_kwh=Decimal("2.65"), water_price_m3=Decimal("65.00"), saturday_only=1)
         db.add(settings)
         db.commit()
 
@@ -431,6 +431,7 @@ async def gem_indstillinger(
     admin_email: str = Form(""),
     electricity_price_kwh: str = Form("2.65"),
     water_price_m3: str = Form("65.00"),
+    saturday_only: str = Form("0"),
     db: Session = Depends(get_db),
 ):
     redirect = kræv_login(request)
@@ -451,6 +452,8 @@ async def gem_indstillinger(
         settings.water_price_m3 = Decimal(water_price_m3.replace(",", "."))
     except InvalidOperation:
         settings.water_price_m3 = Decimal("65.00")
+
+    settings.saturday_only = 1 if saturday_only == "1" else 0
 
     db.commit()
     return RedirectResponse(url="/admin/indstillinger?gemt=1", status_code=303)

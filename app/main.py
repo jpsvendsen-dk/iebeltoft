@@ -20,6 +20,7 @@ try:
             "ALTER TABLE bookings ADD COLUMN guest_zip VARCHAR(10)",
             "ALTER TABLE bookings ADD COLUMN guest_city VARCHAR(100)",
             "ALTER TABLE bookings ADD COLUMN guest_remarks TEXT",
+            "ALTER TABLE settings ADD COLUMN saturday_only INTEGER DEFAULT 1",
         ]:
             try:
                 conn.execute(text(sql))

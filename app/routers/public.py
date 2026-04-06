@@ -26,12 +26,15 @@ async def booking_side(request: Request, db: Session = Depends(get_db)):
     maaneder = generer_gaeste_kalender(db)
     saeson_priser = db.query(models.SeasonPrice).order_by(models.SeasonPrice.season).all()
     settings = db.query(models.Settings).filter(models.Settings.id == 1).first()
+    saturday_only = bool(settings and settings.saturday_only)
     return templates.TemplateResponse("public/booking.html", {
         "request": request,
         "maaneder": maaneder,
         "saeson_farver": SAESON_FARVER,
         "saeson_priser": saeson_priser,
         "settings": settings,
+        "saturday_only": saturday_only,
+        "fejl": request.query_params.get("fejl"),
     })
 
 
@@ -85,6 +88,12 @@ async def opret_booking(
 
     if til <= fra or fra < datetime.date.today():
         return RedirectResponse(url="/booking", status_code=303)
+
+    # Tjek lørdag-til-lørdag regel
+    settings_check = db.query(models.Settings).filter(models.Settings.id == 1).first()
+    if settings_check and settings_check.saturday_only:
+        if fra.weekday() != 5 or til.weekday() != 5:  # 5 = lørdag
+            return RedirectResponse(url="/booking?fejl=lordag", status_code=303)
 
     if tjek_overlap(fra, til, db):
         return RedirectResponse(url="/booking?fejl=optaget", status_code=303)
