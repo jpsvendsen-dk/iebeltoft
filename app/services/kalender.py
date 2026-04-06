@@ -14,8 +14,13 @@ GAESTE_FARVER = {
 }
 
 
-def hent_optagne_datoer(db: Session) -> set:
-    """Returnerer et sæt af alle optagne datoer (bekræftede + afventende bookinger)."""
+def hent_optagne_datoer(db: Session) -> tuple[set, set]:
+    """
+    Returnerer to sæt:
+    - optagne: dage midt i en booking (kan ikke vælges overhovedet)
+    - skiftedage: check-in dage for eksisterende bookinger
+      (disse kan bruges som check-out for en forudgående booking)
+    """
     i_dag = datetime.date.today()
     bookinger = db.query(models.Booking).filter(
         models.Booking.check_out > i_dag,
@@ -26,12 +31,14 @@ def hent_optagne_datoer(db: Session) -> set:
     ).all()
 
     optagne = set()
+    skiftedage = set()
     for b in bookinger:
-        dag = b.check_in
+        skiftedage.add(b.check_in)
+        dag = b.check_in + datetime.timedelta(days=1)
         while dag < b.check_out:
             optagne.add(dag)
             dag += datetime.timedelta(days=1)
-    return optagne
+    return optagne, skiftedage
 
 
 def generer_gaeste_kalender(db: Session, maaneder_frem: int = 14) -> list[dict]:
@@ -40,7 +47,7 @@ def generer_gaeste_kalender(db: Session, maaneder_frem: int = 14) -> list[dict]:
     Viser nuværende og kommende måneder med tilgængelighed og sæsonfarver.
     """
     i_dag = datetime.date.today()
-    optagne = hent_optagne_datoer(db)
+    optagne, skiftedage = hent_optagne_datoer(db)
 
     intervaller = db.query(models.SeasonInterval).order_by(
         models.SeasonInterval.date_from
@@ -71,9 +78,11 @@ def generer_gaeste_kalender(db: Session, maaneder_frem: int = 14) -> list[dict]:
             if dag < i_dag:
                 status = "fortid"
             elif dag in optagne:
-                status = "optaget"
+                status = "optaget"   # midt i booking — kan ikke vælges
+            elif dag in skiftedage:
+                status = "skiftedag" # ankomstdag for næste booking — kan bruges som afrejsedag
             elif saeson is None:
-                status = "optaget"  # Ingen sæson defineret = ikke mulig at booke
+                status = "optaget"   # ingen sæson = ikke mulig at booke
             else:
                 status = "ledig"
 

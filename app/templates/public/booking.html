@@ -137,6 +137,8 @@
                                    text-gray-300 cursor-not-allowed
                                {% elif dag.status == 'optaget' %}
                                    bg-gray-200 text-gray-400 cursor-not-allowed line-through
+                               {% elif dag.status == 'skiftedag' %}
+                                   bg-gray-100 text-gray-400 cursor-pointer
                                {% else %}
                                    {{ dag.bg }} {{ dag.text }} {{ dag.hover }} cursor-pointer
                                {% endif %}"
@@ -345,7 +347,8 @@ visMaaneder();
 function indeholderOptaget(fra, til) {
     for (const el of alle()) {
         const d = el.dataset.dato;
-        if (d > fra && d < til && el.dataset.status === 'optaget') return true;
+        if (d > fra && d < til &&
+            (el.dataset.status === 'optaget' || el.dataset.status === 'skiftedag')) return true;
     }
     return false;
 }
@@ -405,8 +408,19 @@ for (const el of alle()) {
     el.addEventListener('click', () => {
         const dato   = el.dataset.dato;
         const status = el.dataset.status;
-        if (status !== 'ledig') return;
+        if (status === 'fortid' || status === 'optaget') return;
         if (KUN_LORDAG && !erLordag(dato)) return;
+
+        // Skiftedag: kan kun bruges som afrejsedato (ikke ankomst)
+        if (status === 'skiftedag') {
+            if (checkIn && !checkOut && dato > checkIn && !indeholderOptaget(checkIn, dato)) {
+                checkOut = dato;
+                opdaterVisning();
+                opdaterFormular();
+            }
+            return;
+        }
+
         if (!checkIn || checkOut) {
             checkIn  = dato;
             checkOut = null;
@@ -428,8 +442,11 @@ for (const el of alle()) {
     });
 
     el.addEventListener('mouseenter', () => {
-        if (checkIn && !checkOut && el.dataset.status === 'ledig' && el.dataset.dato > checkIn)
-            opdaterVisning(el.dataset.dato);
+        const s = el.dataset.status;
+        const d = el.dataset.dato;
+        if (checkIn && !checkOut && d > checkIn &&
+            (s === 'ledig' || s === 'skiftedag') && !indeholderOptaget(checkIn, d))
+            opdaterVisning(d);
     });
     el.addEventListener('mouseleave', () => {
         if (checkIn && !checkOut) opdaterVisning();
