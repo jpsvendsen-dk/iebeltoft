@@ -12,7 +12,7 @@ import datetime
 import os
 import pathlib
 from typing import List
-from PIL import Image, ExifTags
+from PIL import Image, ImageOps, ExifTags
 import io
 
 router = APIRouter(prefix="/admin")
@@ -544,26 +544,8 @@ async def upload_billeder(
             indhold = await fil.read()
             img = Image.open(io.BytesIO(indhold))
 
-            # Bevar EXIF-data
-            exif_bytes = None
-            try:
-                exif_bytes = img.info.get("exif")
-            except Exception:
-                pass
-
-            # Korriger rotation fra EXIF
-            try:
-                for tag_id, val in (img._getexif() or {}).items():
-                    if ExifTags.TAGS.get(tag_id) == "Orientation":
-                        if val == 3:
-                            img = img.rotate(180, expand=True)
-                        elif val == 6:
-                            img = img.rotate(270, expand=True)
-                        elif val == 8:
-                            img = img.rotate(90, expand=True)
-                        break
-            except Exception:
-                pass
+            # Korriger rotation fra EXIF og fjern orientation-tagget
+            img = ImageOps.exif_transpose(img)
 
             # Konverter til RGB (håndterer PNG/HEIC med alpha)
             if img.mode not in ("RGB", "L"):
