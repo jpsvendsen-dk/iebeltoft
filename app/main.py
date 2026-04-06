@@ -9,27 +9,28 @@ import os
 
 load_dotenv()
 
-# Opret nye tabeller automatisk (fejler lydløst hvis DB er i dvale ved opstart)
+# Opret nye tabeller automatisk
 try:
     Base.metadata.create_all(bind=engine)
-
-    # Tilføj nye kolonner hvis de ikke findes (kører ufarligt ved genstart)
-    # Hver migration kører i sin egen forbindelse så en fejl ikke blokerer de øvrige
-    for sql in [
-        "ALTER TABLE bookings ADD COLUMN guest_address VARCHAR(200)",
-        "ALTER TABLE bookings ADD COLUMN guest_zip VARCHAR(10)",
-        "ALTER TABLE bookings ADD COLUMN guest_city VARCHAR(100)",
-        "ALTER TABLE bookings ADD COLUMN guest_remarks TEXT",
-        "ALTER TABLE settings ADD COLUMN saturday_only INTEGER DEFAULT 1",
-    ]:
-        try:
-            with engine.connect() as conn:
-                conn.execute(text(sql))
-                conn.commit()
-        except Exception:
-            pass
 except Exception:
     pass
+
+# Tilføj nye kolonner hvis de ikke findes — kører uafhængigt af create_all
+# Hver migration i sin egen forbindelse så PostgreSQL-fejl er isolerede
+_MIGRATIONS = [
+    "ALTER TABLE bookings ADD COLUMN guest_address VARCHAR(200)",
+    "ALTER TABLE bookings ADD COLUMN guest_zip VARCHAR(10)",
+    "ALTER TABLE bookings ADD COLUMN guest_city VARCHAR(100)",
+    "ALTER TABLE bookings ADD COLUMN guest_remarks TEXT",
+    "ALTER TABLE settings ADD COLUMN saturday_only INTEGER DEFAULT 1",
+]
+for _sql in _MIGRATIONS:
+    try:
+        with engine.connect() as _conn:
+            _conn.execute(text(_sql))
+            _conn.commit()
+    except Exception:
+        pass
 
 app = FastAPI(title="iebeltoft.dk — Sommerhus Udlejning", docs_url=None, redoc_url=None)
 
