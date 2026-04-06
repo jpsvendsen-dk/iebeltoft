@@ -13,20 +13,21 @@ load_dotenv()
 try:
     Base.metadata.create_all(bind=engine)
 
-    # Tilføj nye Booking-kolonner hvis de ikke findes (kører ufarligt ved genstart)
-    with engine.connect() as conn:
-        for sql in [
-            "ALTER TABLE bookings ADD COLUMN guest_address VARCHAR(200)",
-            "ALTER TABLE bookings ADD COLUMN guest_zip VARCHAR(10)",
-            "ALTER TABLE bookings ADD COLUMN guest_city VARCHAR(100)",
-            "ALTER TABLE bookings ADD COLUMN guest_remarks TEXT",
-            "ALTER TABLE settings ADD COLUMN saturday_only INTEGER DEFAULT 1",
-        ]:
-            try:
+    # Tilføj nye kolonner hvis de ikke findes (kører ufarligt ved genstart)
+    # Hver migration kører i sin egen forbindelse så en fejl ikke blokerer de øvrige
+    for sql in [
+        "ALTER TABLE bookings ADD COLUMN guest_address VARCHAR(200)",
+        "ALTER TABLE bookings ADD COLUMN guest_zip VARCHAR(10)",
+        "ALTER TABLE bookings ADD COLUMN guest_city VARCHAR(100)",
+        "ALTER TABLE bookings ADD COLUMN guest_remarks TEXT",
+        "ALTER TABLE settings ADD COLUMN saturday_only INTEGER DEFAULT 1",
+    ]:
+        try:
+            with engine.connect() as conn:
                 conn.execute(text(sql))
                 conn.commit()
-            except Exception:
-                pass
+        except Exception:
+            pass
 except Exception:
     pass
 
