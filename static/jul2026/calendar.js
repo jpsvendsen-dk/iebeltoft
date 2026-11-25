@@ -99,6 +99,10 @@
   });
   $('surprise').addEventListener('close', disposeVideo);
   $('surprise').addEventListener('cancel', disposeVideo);
+  document.addEventListener('jul2026:snake-open', event => {
+    if (busy) { event.preventDefault(); notice('Vent, til lågen er åbnet.'); return; }
+    stopCreak(); disposeVideo(); $('surprise').close();
+  });
   let opened = new Set();
   let account = null, refreshing = false, syncing = false, syncAgain = false;
   const storageDays = (key) => {

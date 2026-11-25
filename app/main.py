@@ -3,7 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import text
 from app.database import engine, Base
-from app.routers import public, admin, christmas, christmas_accounts, christmas_admin
+from app.routers import public, admin, christmas, christmas_accounts, christmas_admin, christmas_snake
 from dotenv import load_dotenv
 import os
 
@@ -49,6 +49,7 @@ app.include_router(admin.router)
 app.include_router(christmas.router)
 app.include_router(christmas_accounts.router)
 app.include_router(christmas_admin.router)
+app.include_router(christmas_snake.router)
 
 
 @app.api_route("/health", methods=["GET", "HEAD"])

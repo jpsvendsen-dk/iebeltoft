@@ -140,3 +140,27 @@ class CalendarLoginEvent(Base):
     ip_address = Column(String(45))
     device_type = Column(String(120))
     user_agent = Column(String(512))
+
+
+class CalendarSnakeProfile(Base):
+    __tablename__ = "calendar_snake_profiles"
+    __table_args__ = (UniqueConstraint("year", "name_key", name="uq_snake_player_name"),)
+    visitor_id = Column(Integer, ForeignKey("calendar_visitors.id"), primary_key=True)
+    year = Column(Integer, primary_key=True)
+    display_name = Column(String(20))
+    name_key = Column(String(60))
+    is_public = Column(Boolean, nullable=False, default=False, server_default=false())
+    best_score = Column(Integer, nullable=False, default=0, server_default="0")
+    achieved_at = Column(DateTime)
+
+
+class CalendarSnakeRound(Base):
+    __tablename__ = "calendar_snake_rounds"
+    id = Column(String(36), primary_key=True)
+    visitor_id = Column(Integer, ForeignKey("calendar_visitors.id"), nullable=False, index=True)
+    year = Column(Integer, nullable=False)
+    seed = Column(Integer, nullable=False)
+    started_at = Column(DateTime, nullable=False)
+    finished_at = Column(DateTime)
+    score = Column(Integer)
+    submission_hash = Column(String(64))
