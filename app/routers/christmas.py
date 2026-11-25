@@ -14,6 +14,7 @@ router = APIRouter()
 VERSION = "jul2026-2"
 
 # Official Charts' top 24 most-streamed Christmas songs in the UK, reversed.
+# Door 11 replaced with Mads Langer at the owner's request.
 # Rank 9 is listed under Elton John's Christmas EP: Step Into Christmas.
 SONGS = [
     ("Feliz Navidad", "José Feliciano", "N8NcQzMQN_U"),
@@ -26,7 +27,7 @@ SONGS = [
     ("Happy Xmas (War Is Over)", "John Lennon & Yoko Ono", "flA5ndOyZbI"),
     ("Merry Xmas Everybody", "Slade", "PTslBTBl1X8"),
     ("One More Sleep", "Leona Lewis", "j-_1-uJ6Ml4"),
-    ("Jingle Bell Rock", "Bobby Helms", "itcMLwMEeMQ"),
+    ("I en stjerneregn af sne", "Mads Langer", "VxXW2aEWoJc"),
     ("It's the Most Wonderful Time of the Year", "Andy Williams", "AN_R4pR1hck"),
     ("Driving Home for Christmas", "Chris Rea", "DDt3u2Ev1cI"),
     ("Underneath the Tree", "Kelly Clarkson", "YfF10ow4YEo"),
