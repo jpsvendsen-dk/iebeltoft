@@ -353,6 +353,11 @@
     } catch (_) { notice('Du kunne ikke logges ud. Tjek forbindelsen, og prøv igen.'); $('logout').disabled = false; }
   };
   $('about-open').onclick = () => $('about').showModal();
+  $('contact-email').onclick = () => {
+    // Assemble only on a deliberate click; no readable address/mailto in the DOM.
+    const recipient = String.fromCharCode(106,112,115,118,101,110,100,115,101,110,64,103,109,97,105,108,46,99,111,109);
+    location.assign(`mailto:${recipient}?subject=${encodeURIComponent('Kommentar til julekalenderen')}`);
+  };
   $('about-close').onclick = $('about-done').onclick = () => $('about').close();
   for (const d of [$('surprise'), $('about'), $('account-dialog')]) d.addEventListener('click', e => { const b = d.getBoundingClientRect(); if (e.target === d && (e.clientX < b.left || e.clientX > b.right || e.clientY < b.top || e.clientY > b.bottom)) d.close(); });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
