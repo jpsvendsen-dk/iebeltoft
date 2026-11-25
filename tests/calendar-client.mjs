@@ -24,7 +24,7 @@ export async function runTests() {
       append(el) { this.children.push(el); }
       querySelector() { return this.back??=new Element(); }
       showModal() { this.open=true; }
-      close() { this.open=false; }
+      close() { this.open=false; this.listeners.close?.(); }
     }
     const get=id=>{if(!nodes.has(id))nodes.set(id,new Element());return nodes.get(id);};
     const storageApi=map=>({getItem:k=>map.get(k)??null,setItem:(k,v)=>map.set(k,v),removeItem:k=>map.delete(k)});
@@ -38,7 +38,7 @@ export async function runTests() {
     const ctx=vm.createContext({
       document:{getElementById:get,documentElement:new Element(),createElement:()=>new Element(),addEventListener(){}},
       location:{pathname:path,assign(){}},localStorage:storageApi(storage),sessionStorage:storageApi(session),
-      crypto:{randomUUID},
+      crypto:{randomUUID},URL,
       navigator:{audioSession},window:{AudioContext:audioState?SafariAudio:undefined,matchMedia:()=>({matches:true})},setTimeout:(f,ms)=>{if(ms===0)f();return 1;},clearTimeout(){},setInterval:f=>{refresh=f;},
       fetch:(url,options={})=>{
         audioCalls.push('fetch');
@@ -60,7 +60,7 @@ export async function runTests() {
           if(!allowed){ok=false;status=403;result={detail:'Lågen er låst.'};}
           else{
             if(current)current.opened=[...new Set([...current.opened,day])].sort((a,b)=>a-b);
-            result={title:'Song',artist:'Artist',youtube:'https://www.youtube.com/watch?v=test',animal:'Fox'};
+            result={title:'Song',artist:'Artist',youtube:'https://www.youtube.com/watch?v=testVideo'+String(day).padStart(2,'0'),animal:'Fox'};
             if(dropNextOpen){dropNextOpen=false;throw Error('Response lost');}
           }
         }
@@ -105,6 +105,31 @@ export async function runTests() {
 
   const guest=harness();guest.door(2).listeners.click();guest.drain();assert.deepEqual(JSON.parse(guest.storage.get('jul2026-opened')),[2]);assert(!guest.calls.some(c=>c.url.endsWith('/account/opened')));
   const preview=harness({path:'/admin/jul2026'});preview.door(24).listeners.click();preview.drain();assert.deepEqual(JSON.parse(preview.storage.get('jul2026-preview-opened')),[24]);assert(!preview.calls.some(c=>c.url.includes('/account')));assert(preview.get('account-open').hidden);
+
+  const media=harness();media.door(2).listeners.click();media.drain();
+  assert.equal(media.get('animal-art').hidden,false);
+  assert.equal(media.get('video-container').children.length,0); // No third-party player before the choice.
+  media.get('play-inline').listeners.click();
+  const frame=media.get('video-container').children[0];
+  assert.equal(frame.src,'https://www.youtube-nocookie.com/embed/testVideo02?autoplay=1&playsinline=1&rel=0&hl=da');
+  assert.equal(frame.referrerPolicy,'strict-origin-when-cross-origin');
+  assert(frame.allow.includes('autoplay') && frame.allowFullscreen);
+  assert.equal(media.get('animal-art').hidden,true);
+  assert.equal(media.get('play-inline').attrs['aria-pressed'],'true');
+  media.get('play-inline').listeners.click();
+  assert.equal(media.get('video-container').children.length,0);
+  assert.equal(media.get('animal-art').hidden,false);
+  media.get('play-inline').listeners.click();media.get('surprise-close').onclick();
+  assert.equal(media.get('video-container').children.length,0);assert.equal(media.get('surprise').open,false);
+  media.door(3).listeners.click();media.drain();
+  assert.equal(media.get('video-container').children.length,0); // Another door starts on its image.
+  media.get('play-inline').listeners.click();assert(media.get('video-container').children[0].src.includes('/testVideo03?'));
+  media.get('surprise').listeners.cancel();media.get('surprise').close();
+  assert.equal(media.get('video-container').children.length,0);
+  media.door(2).listeners.click();media.drain();media.get('play-inline').listeners.click();media.get('youtube').listeners.click();
+  assert.equal(media.get('video-container').children.length,0);assert.equal(media.get('surprise').open,false);
+  assert.equal(media.get('youtube').href,'https://www.youtube.com/watch?v=testVideo02');
+  assert(media.door(2).classList.contains('opened'));
 
   for(const state of ['suspended','interrupted']){
     const iphone=harness({audioState:state});
@@ -151,5 +176,5 @@ export async function runTests() {
   assert.equal(loginCalls[0].url,'/Jul2026/api/login/consume');
   assert.equal(JSON.parse(loginCalls[0].options.body).token,'a'.repeat(43));
   assert.equal(loginStorage.get('jul2026-merge-guest'),'yes');assert.equal(destination,'/Jul2026');
-  return 'OK: profile sync, click history, access rules, mobile day labels, Safari tap unlock, interrupted audio recovery, audible reopens with reduced motion, mute/test controls and blocked audio fallback.';
+  return 'OK: inline video choice, image switch, player cleanup on close/Escape/external link, per-door reset, mobile audio, labels, profile sync and click history.';
 }

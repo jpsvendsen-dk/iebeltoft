@@ -9,6 +9,35 @@
   const order = [7,18,3,12,21,6,15,1,23,9,4,17,11,20,8,24,14,2,22,5,16,10,19,13];
   let state = null, sound = true, busy = false, timer, audio, creakBuffer, activeCreak;
   let audioReady = Promise.resolve(false);
+  let popupVideoId = null;
+  function showPicture() {
+    $('video-container').replaceChildren();
+    $('video-container').hidden = true;
+    $('video-help').hidden = true;
+    $('animal-art').hidden = false;
+    $('play-inline').setAttribute('aria-pressed', 'false');
+    $('play-inline').textContent = '▶ Afspil video her';
+  }
+  $('play-inline').addEventListener('click', () => {
+    if (!$('video-container').hidden) { showPicture(); return; }
+    if (!popupVideoId) { notice('Videoen kunne ikke indlæses her. Brug “Åbn på YouTube”.'); return; }
+    stopCreak();
+    const frame = document.createElement('iframe');
+    frame.title = `${$('song-title').textContent} – ${$('song-artist').textContent}`;
+    frame.allow = 'autoplay; encrypted-media; fullscreen; picture-in-picture; web-share';
+    frame.allowFullscreen = true;
+    frame.referrerPolicy = 'strict-origin-when-cross-origin';
+    frame.src = `https://www.youtube-nocookie.com/embed/${popupVideoId}?autoplay=1&playsinline=1&rel=0&hl=da`;
+    $('video-container').replaceChildren();
+    $('video-container').append(frame);
+    $('video-container').hidden = false;
+    $('video-help').hidden = false;
+    $('animal-art').hidden = true;
+    $('play-inline').setAttribute('aria-pressed', 'true');
+    $('play-inline').textContent = 'Vis billedet';
+  });
+  $('surprise').addEventListener('close', () => { showPicture(); popupVideoId = null; });
+  $('surprise').addEventListener('cancel', showPicture);
   let opened = new Set();
   let account = null, refreshing = false, syncing = false, syncAgain = false;
   const storageDays = (key) => {
@@ -216,6 +245,10 @@
       $('surprise-title').textContent = day === 24 ? 'Rigtig glædelig jul' : 'Et lille juleøjeblik';
       $('animal-caption').textContent = `${data.animal}. ${day === 24 ? 'Her er julens største hit til din juleaften.' : 'En stille stund og en sang, der varmer.'}`;
       $('song-title').textContent = data.title; $('song-artist').textContent = data.artist; $('youtube').href = data.youtube;
+      showPicture();
+      const videoId = new URL(data.youtube).searchParams.get('v');
+      popupVideoId = videoId && /^[A-Za-z0-9_-]{11}$/.test(videoId) ? videoId : null;
+      $('play-inline').disabled = !popupVideoId;
       $('surprise').showModal();
       opened.add(day); rememberOpened();
       el.classList.remove('opening'); el.classList.add('opened'); el.setAttribute('aria-label', `${day}. december, allerede åbnet`); updateCount();
@@ -223,8 +256,8 @@
     } catch (error) { el.classList.remove('opening'); notice(error.message || 'Forbindelsen driller. Prøv igen om lidt.'); }
     finally { busy = false; el.disabled = false; if (refreshAccess) void refresh(); }
   }
-  $('surprise-close').onclick = () => $('surprise').close();
-  $('youtube').addEventListener('click', () => { $('surprise').close(); });
+  $('surprise-close').onclick = () => { showPicture(); $('surprise').close(); };
+  $('youtube').addEventListener('click', () => { showPicture(); $('surprise').close(); });
   $('account-open').onclick = () => { accountDisplay(); $('account-dialog').showModal(); };
   $('account-close').onclick = () => $('account-dialog').close();
   $('login-form').addEventListener('submit', async event => {
