@@ -2,7 +2,9 @@
 export const SIZE = 20, MAX_TICKS = 20000;
 const vectors = [[1,0],[0,1],[-1,0],[0,-1]];
 export class SnakeGame {
-  constructor(seed) {
+  constructor(seed, version = 1) {
+    this.version = version; this.lives = version >= 2 ? 2 : 1;
+    this.bonusLife = false; this.lifeLost = false;
     this.seed = seed >>> 0; this.body = [[10,10],[9,10],[8,10]];
     this.direction = 0; this.score = 0; this.tick = 0; this.elapsedMs = 0;
     this.over = false; this.won = false; this.food = this.spawn();
@@ -20,6 +22,7 @@ export class SnakeGame {
   get interval() { return Math.max(80,160-Math.floor(this.score/50)*10); }
   step(direction = null) {
     if (this.over) throw Error('Spillet er allerede afsluttet.');
+    if (this.lifeLost) this.respawn();
     if (direction !== null) {
       if (direction === (this.direction+2)%4) throw Error('Slangen kan ikke vende direkte tilbage.');
       this.direction = direction;
@@ -28,12 +31,20 @@ export class SnakeGame {
     const [dx,dy] = vectors[this.direction], head = [this.body[0][0]+dx,this.body[0][1]+dy];
     const grows = this.food && head[0] === this.food[0] && head[1] === this.food[1];
     const obstacles = grows ? this.body : this.body.slice(0,-1);
-    if (head[0]<0 || head[0]>=SIZE || head[1]<0 || head[1]>=SIZE || obstacles.some(p=>p[0]===head[0] && p[1]===head[1])) { this.over=true; return; }
+    if (head[0]<0 || head[0]>=SIZE || head[1]<0 || head[1]>=SIZE || obstacles.some(p=>p[0]===head[0] && p[1]===head[1])) {
+      this.lives--;this.over=this.lives===0 || this.tick===MAX_TICKS;this.lifeLost=!this.over;return;
+    }
     this.body.unshift(head);
     if (grows) {
-      this.score += 10; this.food = this.spawn();
+      this.score += 10;
+      if (this.version >= 2 && this.score > 500 && !this.bonusLife) { this.lives++; this.bonusLife=true; }
+      this.food = this.spawn();
       if (!this.food) this.over = this.won = true;
     } else this.body.pop();
     if (this.tick === MAX_TICKS) this.over = true;
+  }
+  respawn() {
+    this.body=[[10,10],[9,10],[8,10]];this.direction=0;this.lifeLost=false;
+    if (this.food && this.body.some(p=>p[0]===this.food[0] && p[1]===this.food[1])) this.food=this.spawn();
   }
 }

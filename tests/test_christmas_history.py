@@ -15,6 +15,36 @@ HEADERS = account_tests.HEADERS
 
 
 class CalendarHistoryTests(unittest.TestCase):
+    def test_snake_history_guest_filter_counts_and_deletion(self):
+        from app.models import CalendarSnakeEvent, CalendarSnakeProfile
+        person=self.login()
+        self.save(self.client,person['id'],[2])
+        with self.Session() as db:
+            for action in ('open','replay'):
+                db.add(CalendarSnakeEvent(id=str(uuid4()),visitor_id=person['id'],year=2026,action=action,clicked_at=self.now,ip_address='203.0.113.8',device_type='iPhone'))
+            db.add(CalendarSnakeEvent(id=str(uuid4()),year=2026,action='open',clicked_at=self.now))
+            db.add(CalendarSnakeProfile(visitor_id=person['id'],year=2026,best_score=80))
+            db.commit()
+        self.assertEqual(self.client.get('/admin/jul2026/historik?kind=snake',follow_redirects=False).status_code,303)
+        admin,csrf=self.admin()
+        page=admin.get('/admin/jul2026/historik?kind=snake')
+        self.assertEqual(page.status_code,200)
+        self.assertEqual(len(page.context['events']),3)
+        self.assertTrue(any(e['email']=='Gæst (uden login)' for e in page.context['events']))
+        filtered=admin.get('/admin/jul2026/historik',params={'kind':'snake','email':person['email'],'day':'24'})
+        self.assertEqual(len(filtered.context['events']),2)
+        self.assertEqual({e['result'] for e in filtered.context['events']},{'Spil Jule-Snake','Spil igen'})
+        self.assertEqual(admin.get('/admin/jul2026/indstillinger').context['snake_counts'][person['id']],2)
+        path=f"/admin/jul2026/historik/slet?person_id={person['id']}"
+        self.assertEqual(admin.get(path).context['counts']['snake'],2)
+        admin.post(path,data={'csrf':csrf,'confirm':'delete-history'})
+        self.assertEqual(len(admin.get('/admin/jul2026/historik?kind=snake').context['events']),1)
+        with self.Session() as db:
+            self.assertEqual(db.get(CalendarSnakeProfile,(person['id'],2026)).best_score,80)
+        self.assertEqual(self.client.get('/Jul2026/api/account').json()['account']['opened'],[2])
+        admin.post('/admin/jul2026/historik/slet',data={'csrf':csrf,'confirm':'delete-history'})
+        self.assertEqual(admin.get('/admin/jul2026/historik?kind=snake').context['events'],[])
+
     device = account_tests.CalendarAccountTests.device
     request_link = account_tests.CalendarAccountTests.request_link
     login = account_tests.CalendarAccountTests.login
@@ -189,7 +219,7 @@ class CalendarHistoryTests(unittest.TestCase):
         path = f"/admin/jul2026/historik/slet?person_id={first['id']}"
         confirmation = admin.get(path)
         self.assertEqual(confirmation.status_code, 200)
-        self.assertEqual(confirmation.context['counts'], {'login': 1, 'doors': 1})
+        self.assertEqual(confirmation.context['counts'], {'login': 1, 'doors': 1, 'snake': 0})
         self.assertEqual(len(self.events()), 2)  # GET never deletes.
         self.assertEqual(admin.post(path, data={'csrf': csrf, 'confirm': 'delete-history'}, follow_redirects=False).status_code, 303)
         self.assertEqual([event.visitor_id for event in self.events()], [second['id']])

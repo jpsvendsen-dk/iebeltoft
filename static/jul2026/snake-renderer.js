@@ -50,7 +50,7 @@ export class SnakeRenderer {
     return this.phase==='running'?clamp((now-this.started)/this.duration):this.progress;
   }
   update(game, phase) {
-    const now=performance.now(), fresh=this.source!==game;
+    const now=performance.now(), fresh=this.source!==game || this.lifeLost&&!game.lifeLost;
     if(fresh || this.tick!==game.tick){
       const old=this.scene;
       this.previous=fresh?game.body.map(p=>[...p]):old.body;
@@ -59,8 +59,9 @@ export class SnakeRenderer {
         this.effects.push({x:(old.food[0]+.5)*CELL,y:(old.food[1]+.5)*CELL,time:now});
       }
       if(fresh)this.effects=[];
-      this.scene={body:game.body.map(p=>[...p]),food:game.food?[...game.food]:null,direction:game.direction,interval:game.interval,score:game.score,won:game.won};
+      this.scene={body:game.body.map(p=>[...p]),food:game.food?[...game.food]:null,direction:game.direction,interval:game.interval,score:game.score,lives:game.lives,won:game.won};
       this.source=game;this.tick=game.tick;this.started=now;
+      this.lifeLost=game.lifeLost;
       this.progress=fresh||game.over?1:0;
       if(this.progress===1)this.started=now-this.duration;
     }
@@ -137,11 +138,11 @@ export class SnakeRenderer {
     c.clearRect(0,0,VIEW,VIEW);c.drawImage(this.background,0,0,VIEW,VIEW);
     if(!this.scene)return;
     this.gift(now);this.snake(now);this.sparkles(now);
-    if(this.phase==='paused'||this.phase==='over'){
+    if(this.phase==='paused'||this.phase==='over'||this.phase==='life'){
       c.fillStyle='#082c31a8';c.fillRect(0,0,VIEW,VIEW);
       c.fillStyle='#112e35ed';this.roundedBox(c,48,164,344,112,20);c.fill();c.strokeStyle='#e6c58c66';c.lineWidth=1;c.stroke();
-      c.fillStyle='#fff0d3';c.textAlign='center';c.font='600 26px system-ui';c.fillText(this.phase==='paused'?'En lille julepause':this.scene.won?'Alle gaver samlet!':'Tak for spillet!',VIEW/2,211);
-      c.font='17px system-ui';c.fillStyle='#e7d4b4';c.fillText(this.phase==='over'?`${this.scene.score} point`:'Tag dig god tid',VIEW/2,244);
+      c.fillStyle='#fff0d3';c.textAlign='center';c.font='600 26px system-ui';c.fillText(this.phase==='life'?(this.scene.lives===1?'Ét liv tilbage':`${this.scene.lives} liv tilbage`):this.phase==='paused'?'En lille julepause':this.scene.won?'Alle gaver samlet!':'Tak for spillet!',VIEW/2,211);
+      c.font='17px system-ui';c.fillStyle='#e7d4b4';c.fillText(this.phase==='life'?'Tryk “Brug næste liv”':this.phase==='over'?`${this.scene.score} point`:'Tag dig god tid',VIEW/2,244);
     }
   }
 }

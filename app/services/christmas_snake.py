@@ -5,8 +5,12 @@ VECTORS = ((1, 0), (0, 1), (-1, 0), (0, -1))
 
 
 class Game:
-    def __init__(self, seed):
+    def __init__(self, seed, version=1):
         self.seed = seed
+        self.version = version
+        self.lives = 2 if version >= 2 else 1
+        self.bonus_life = False
+        self.life_lost = False
         self.body = [(10, 10), (9, 10), (8, 10)]
         self.direction = 0
         self.score = 0
@@ -35,6 +39,8 @@ class Game:
     def step(self, direction=None):
         if self.over:
             raise ValueError("Spillet er allerede afsluttet.")
+        if self.life_lost:
+            self.respawn()
         if direction is not None:
             if direction == (self.direction + 2) % 4:
                 raise ValueError("Slangen kan ikke vende direkte tilbage.")
@@ -45,11 +51,16 @@ class Game:
         head = (self.body[0][0] + dx, self.body[0][1] + dy)
         grows = head == self.food
         if not (0 <= head[0] < SIZE and 0 <= head[1] < SIZE) or head in (self.body if grows else self.body[:-1]):
-            self.over = True
+            self.lives -= 1
+            self.over = self.lives == 0 or self.tick == MAX_TICKS
+            self.life_lost = not self.over
             return
         self.body.insert(0, head)
         if grows:
             self.score += 10
+            if self.version >= 2 and self.score > 500 and not self.bonus_life:
+                self.lives += 1
+                self.bonus_life = True
             self.food = self.spawn()
             if self.food is None:
                 self.over = self.won = True
@@ -58,9 +69,16 @@ class Game:
         if self.tick == MAX_TICKS:
             self.over = True
 
+    def respawn(self):
+        self.body = [(10, 10), (9, 10), (8, 10)]
+        self.direction = 0
+        self.life_lost = False
+        if self.food in self.body:
+            self.food = self.spawn()
 
-def replay(seed, ticks, turns):
-    game = Game(seed)
+
+def replay(seed, ticks, turns, version=1):
+    game = Game(seed, version)
     previous = 0
     changes = {}
     for turn in turns:

@@ -4,10 +4,10 @@
 <h1 class="text-2xl font-bold text-gray-800 mb-2">Brugerhistorik · 2026</h1>
 {% if deleted %}<p role="status" class="bg-green-50 border border-green-300 text-green-800 rounded-lg p-3 mb-4">Historikken er slettet. Profiler, aktive login, adgang og åbnede låger er bevaret.</p>{% endif %}
 <p class="mb-4"><a class="text-red-700 underline" href="/admin/jul2026/historik/slet">Slet al historik for alle brugere</a> · <a class="text-blue-700 underline" href="/admin/jul2026/indstillinger">Slet historik for én bruger via profiloversigten</a></p>
-<p class="text-gray-600 mb-4">Se login eller lågetryk fra brugere med e-maillogin. Tidspunkterne vises i dansk tid med sekunder. Enhed og browser er et skøn ud fra browserens oplysninger.</p>
+<p class="text-gray-600 mb-4">Se login, lågetryk eller spilklik fra brugere med e-maillogin. Tidspunkterne vises i dansk tid med sekunder. Enhed og browser er et skøn ud fra browserens oplysninger.</p>
 <a class="text-blue-700 underline" href="/admin/jul2026/indstillinger">Kalenderopsætning og brugeradgang</a>
 <form method="get" class="flex flex-wrap gap-4 items-end my-6">
-  <label>Hændelsestype<select name="kind" class="block border rounded-lg px-3 py-2 mt-1"><option value="doors" {% if kind == 'doors' %}selected{% endif %}>Lågetryk</option><option value="login" {% if kind == 'login' %}selected{% endif %}>Login</option></select></label>
+  <label>Hændelsestype<select name="kind" class="block border rounded-lg px-3 py-2 mt-1"><option value="doors" {% if kind == 'doors' %}selected{% endif %}>Lågetryk</option><option value="login" {% if kind == 'login' %}selected{% endif %}>Login</option><option value="snake" {% if kind == 'snake' %}selected{% endif %}>Jule-Snake</option></select></label>
   <label>Brugerens e-mail<input name="email" type="email" value="{{ email }}" maxlength="254" class="block border rounded-lg px-3 py-2 mt-1"></label>
   <label>Låge<select name="day" class="block border rounded-lg px-3 py-2 mt-1"><option value="">Alle låger</option>{% for n in range(1,25) %}<option value="{{ n }}" {% if day == n %}selected{% endif %}>Låge {{ n }}</option>{% endfor %}</select></label>
   <button type="submit" class="bg-blue-600 text-white rounded-lg px-5 py-2">Vis historik</button><a class="text-blue-700 underline py-2" href="/admin/jul2026/historik">Nulstil filtre</a>
@@ -19,5 +19,5 @@
 </tbody></table></div>
 <nav class="flex gap-6 mt-6" aria-label="Historiksider">{% if page > 1 %}<a class="text-blue-700 underline" href="?kind={{ kind }}&amp;email={{ email|urlencode }}{% if day %}&amp;day={{ day }}{% endif %}&amp;page={{ page-1 }}">Forrige side</a>{% endif %}{% if has_next %}<a class="text-blue-700 underline" href="?kind={{ kind }}&amp;email={{ email|urlencode }}{% if day %}&amp;day={{ day }}{% endif %}&amp;page={{ page+1 }}">Næste side</a>{% endif %}</nav>
 <p class="text-gray-600 mt-5">IP-adresse og enhedsoplysninger registreres fra denne opdatering og kan ikke genskabes for ældre hændelser. En IP-adresse kan være delt eller tilhøre en VPN.</p>
-<p class="text-gray-600 mt-5">Besøg uden login og administratorens prøvevisning indgår ikke i brugerhistorikken.</p>
+<p class="text-gray-600 mt-5">Spilklik fra besøgende uden login vises som gæster. Lågetryk fra gæster og administratorens prøvevisning indgår ikke.</p>
 {% endblock %}

@@ -1,17 +1,21 @@
-import {SnakeGame} from './snake-core.js?v=1';
-import {SnakeRenderer} from './snake-renderer.js?v=3';
-import {SnakeAudio} from './snake-audio.js?v=1';
+import {SnakeGame} from './snake-core.js?v=2';
+import {SnakeRenderer} from './snake-renderer.js?v=5';
+import {SnakeAudio} from './snake-audio.js?v=2';
 
 (() => {
   const $ = id => document.getElementById(id), dialog = $('snake-dialog'), canvas = $('snake-board');
-  const renderer = new SnakeRenderer(canvas), preview = new SnakeGame(2026), api = '/Jul2026/api/snake';
+  const renderer = new SnakeRenderer(canvas), preview = new SnakeGame(2026,2), api = '/Jul2026/api/snake';
   const sounds = new SnakeAudio();
   let game = null, round = null, turns = [], directionQueue = [], timer;
   let phase = 'idle', profile = null, loaded = false, loading = false, saving = false, pending = false, failedSave = false;
   let loadGeneration = 0, guestBest = 0;
-  try { guestBest = Math.max(0,Math.min(3970,Number(localStorage.getItem('jul2026-snake-guest-best'))||0)); } catch (_) {}
+  try { guestBest = Math.max(0,Math.min(200000,Number(localStorage.getItem('jul2026-snake-guest-best'))||0)); } catch (_) {}
   const message = text => { $('snake-status').textContent = text; };
   const identity = value => value?.account_id ?? null;
+  async function logClick(action) {
+    const body={event_id:crypto.randomUUID(),action};
+    try{await request('/events',body);}catch(_){try{await request('/events',body);}catch(_){/* Logging must not block the game. */}}
+  }
   async function request(path, body) {
     const response = await fetch(api+path, body === undefined ? {cache:'no-store'} : {method:'POST',headers:{'Content-Type':'application/json','X-Calendar-Request':'1'},body:JSON.stringify(body)});
     const data = await response.json();
@@ -25,12 +29,13 @@ import {SnakeAudio} from './snake-audio.js?v=1';
     $('snake-sound').setAttribute('aria-pressed',String(soundEnabled));
     $('snake-score').textContent = game?.score || 0;
     $('snake-best').textContent = profile ? profile.best_score : guestBest;
+    $('snake-lives').textContent=game?.lives??2;
     $('snake-start').hidden = !['idle','over'].includes(phase);
     $('snake-start').disabled = !loaded || loading || saving || pending;
     $('snake-start').textContent = game ? 'Spil igen' : 'Start spil';
-    $('snake-pause').hidden = !['running','paused'].includes(phase);
+    $('snake-pause').hidden = !['running','paused','life'].includes(phase);
     $('snake-pause').disabled = loading;
-    $('snake-pause').textContent = phase === 'paused' ? 'Fortsæt' : 'Pause';
+    $('snake-pause').textContent = phase === 'life' ? 'Brug næste liv' : phase === 'paused' ? 'Fortsæt' : 'Pause';
     $('snake-retry').hidden = !failedSave;
     $('snake-retry').disabled = saving;
     $('snake-reload').hidden = loaded || loading;
@@ -57,7 +62,7 @@ import {SnakeAudio} from './snake-audio.js?v=1';
       }
       profile=data.profile;loaded=true;
       $('snake-name').value=profile?.display_name||'';$('snake-public').checked=Boolean(profile?.is_public);
-      if(!game)message('Saml gaver, og undgå kanten og din egen hale. 10 point pr. gave.');
+      if(!game)message('Du har 2 liv. Saml gaver, og få ét ekstra liv, når du kommer over 500 point.');
     } catch(error){loaded=false;message(error.message||'Din profil kunne ikke hentes. Prøv igen.');}
     finally{if(generation===loadGeneration){loading=false;controls();draw();}}
   }
@@ -87,22 +92,27 @@ import {SnakeAudio} from './snake-audio.js?v=1';
       const direction=directionQueue.shift()??null;
       if(direction!==null){turns.push({tick:game.tick+1,direction});}
       const before=game.score;
+      const hadBonus=game.bonusLife;
       game.step(direction);controls();draw();
       if(game.score>before&&!game.over)sounds.play('gift');
-      if(game.over)finish();else schedule();
+      if(!hadBonus&&game.bonusLife)message('Ekstra liv! Du er kommet over 500 point.');
+      if(game.over)finish();
+      else if(game.lifeLost){directionQueue=[];phase='life';sounds.play('life');message(`Du mistede et liv. ${game.lives} tilbage — dine ${game.score} point er bevaret.`);controls();draw();}
+      else schedule();
     },game.interval);
   }
   async function start() {
-    if(!loaded || loading || saving || pending || ['running','paused'].includes(phase))return;
+    if(!loaded || loading || saving || pending || ['running','paused','life'].includes(phase))return;
+    if(game)void logClick('replay');
     sounds.stop();void sounds.unlock();
     loading=true;controls();
     try {
       const data=await request('/profile');
       profile=data.profile;
       let seed;
-      if(profile){const started=await request('/rounds',{account_id:profile.account_id});round={...started,account_id:profile.account_id};seed=started.seed;}
+      if(profile){const started=await request('/rounds',{account_id:profile.account_id,rules_version:2});round={...started,account_id:profile.account_id};seed=started.seed;}
       else{round=null;const random=new Uint32Array(1);crypto.getRandomValues(random);seed=random[0]||1;}
-      game=new SnakeGame(seed);turns=[];directionQueue=[];phase=dialog.open&&!document.hidden?'running':'paused';
+      game=new SnakeGame(seed,round?.rules_version??2);turns=[];directionQueue=[];phase=dialog.open&&!document.hidden?'running':'paused';
       failedSave=false;message(phase==='running'?'God gavejagt!':'Spillet er på pause. Tryk Fortsæt.');
       if(phase==='running'){sounds.play('start');schedule();}
       if(phase==='running')canvas.focus({preventScroll:true});
@@ -119,6 +129,7 @@ import {SnakeAudio} from './snake-audio.js?v=1';
   }
   $('snake-open').addEventListener('click',()=>{
     if(!document.dispatchEvent(new Event('jul2026:snake-open',{cancelable:true})))return;
+    void logClick('open');
     dialog.showModal();pause();void loadProfile();void leaderboard();
   });
   $('snake-close').addEventListener('click',()=>dialog.close());
@@ -129,7 +140,7 @@ import {SnakeAudio} from './snake-audio.js?v=1';
   $('snake-start').addEventListener('click',start);
   $('snake-retry').addEventListener('click',saveResult);
   $('snake-reload').addEventListener('click',loadProfile);
-  $('snake-pause').addEventListener('click',()=>{if(loading)return;if(phase==='running')pause();else if(phase==='paused'){void sounds.unlock();phase='running';message('God gavejagt!');controls();draw();schedule();canvas.focus({preventScroll:true});}});
+  $('snake-pause').addEventListener('click',()=>{if(loading)return;if(phase==='running')pause();else if(phase==='paused'||phase==='life'){void sounds.unlock();if(phase==='life'){game.respawn();directionQueue=[];}phase='running';message('God gavejagt!');controls();draw();schedule();canvas.focus({preventScroll:true});}});
   $('snake-sound').addEventListener('click',()=>{$('sound').click();controls();if(sounds.enabled)void sounds.unlock();});
   $('snake-login').addEventListener('click',()=>{dialog.close();$('account-open').click();});
   const keyMap={ArrowRight:0,d:0,D:0,ArrowDown:1,s:1,S:1,ArrowLeft:2,a:2,A:2,ArrowUp:3,w:3,W:3};

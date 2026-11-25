@@ -45,7 +45,7 @@ export class SnakeAudio {
   }
   play(kind) {
     if(!this.enabled)return;
-    if(kind==='start'||kind==='over')this.stop();
+    if(kind==='start'||kind==='over'||kind==='life')this.stop();
     const generation=this.generation;
     void this.ready.then(ready=>{
       if(!ready||!this.enabled||generation!==this.generation||this.context?.state!=='running')return;
@@ -59,6 +59,8 @@ export class SnakeAudio {
           for(const [frequency,offset,duration] of [[784,0,.2],[1046.5,.12,.2],[1318.5,.24,.2],[1568,.36,.32],[1046.5,.6,.28]])bell(frequency,offset,duration);
         }else if(kind==='gift'){
           bell(1318.5,0,.13);bell(1760,.065,.16);
+        }else if(kind==='life'){
+          this.note(392,0,.13,'triangle',.16);this.note(293.66,.12,.2,'triangle',.16);
         }else if(kind==='over'){
           // Soft square-wave arcade cadence with a downward final pitch bend.
           for(const [frequency,offset,duration] of [[329.63,0,.15],[261.63,.16,.15],[196,.32,.15],[130.81,.48,.36]])this.note(frequency,offset,duration,'square',.11,offset===.48?65.41:null);

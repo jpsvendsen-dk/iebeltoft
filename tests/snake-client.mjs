@@ -3,6 +3,7 @@ import {readFile} from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import {fakeAudio} from './snake-audio.mjs';
 import {setImmediate as nextTurn} from 'node:timers/promises';
+import {randomUUID} from 'node:crypto';
 
 export async function runSnakeTests() {
   const core=await readFile(new URL('../static/jul2026/snake-core.js',import.meta.url),'utf8');
@@ -19,6 +20,9 @@ export async function runSnakeTests() {
   assert.equal(g.score,10);assert.equal(g.tick,13);assert(g.over);assert.equal(g.elapsedMs,2080);
   assert.throws(()=>g.step());
   const speed=new Game(1);speed.score=50;assert.equal(speed.interval,150);speed.score=500;assert.equal(speed.interval,80);
+  const bonus=new Game(1,2);bonus.score=490;bonus.food=[11,10];bonus.step();assert.equal(bonus.lives,2);
+  bonus.food=[12,10];bonus.step();assert.equal(bonus.score,510);assert.equal(bonus.lives,3);
+  bonus.food=[13,10];bonus.step();assert.equal(bonus.lives,3);
 
   function harness(initialProfile=null) {
     const nodes=new Map(),storage=new Map(),calls=[],docEvents={},winEvents={},timers=new Map(),frames=new Map(),headings=[];
@@ -48,18 +52,19 @@ export async function runSnakeTests() {
     get('sound').setAttribute('aria-pressed','true');
     get('sound').addEventListener('click',()=>get('sound').setAttribute('aria-pressed',get('sound').getAttribute('aria-pressed')==='true'?'false':'true'));
     const document={hidden:false,getElementById:get,createElement:()=>new Element(),addEventListener:(name,fn)=>{(docEvents[name]??=[]).push(fn);},dispatchEvent:()=>true};
-    const ctx=vm.createContext({document,navigator:{audioSession:{}},window:{AudioContext:audio.AudioContext,devicePixelRatio:2,addEventListener:(name,fn)=>{winEvents[name]=fn;}},performance:{now:()=>clock},requestAnimationFrame:fn=>{frames.set(++seq,fn);return seq;},cancelAnimationFrame:id=>frames.delete(id),Event:class{},localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},crypto:{getRandomValues(array){array[0]=1;}},setTimeout:fn=>{timers.set(++seq,fn);return seq;},clearTimeout:id=>timers.delete(id),
+    const ctx=vm.createContext({document,navigator:{audioSession:{}},window:{AudioContext:audio.AudioContext,devicePixelRatio:2,addEventListener:(name,fn)=>{winEvents[name]=fn;}},performance:{now:()=>clock},requestAnimationFrame:fn=>{frames.set(++seq,fn);return seq;},cancelAnimationFrame:id=>frames.delete(id),Event:class{},localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},crypto:{randomUUID,getRandomValues(array){array[0]=1;}},setTimeout:fn=>{timers.set(++seq,fn);return seq;},clearTimeout:id=>timers.delete(id),
       fetch:(url,options={})=>{
         audio.order.push('fetch');
         calls.push({url,options});let data,status=200;
-        if(url.endsWith('/profile') && !options.method){if(profileFails)throw Error('Offline');data={profile:profile?{...profile}:null};}
+        if(url.endsWith('/events'))data={ok:true};
+        else if(url.endsWith('/profile') && !options.method){if(profileFails)throw Error('Offline');data={profile:profile?{...profile}:null};}
         else if(url.endsWith('/profile')){const body=JSON.parse(options.body);assert.equal(body.account_id,profile.account_id);profile={...profile,...body};data={profile:{...profile}};}
         else if(url.endsWith('/leaderboard'))data={players:profile?.is_public?[{rank:1,name:profile.display_name,score:profile.best_score}]:[]};
-        else if(url.endsWith('/rounds')){assert.equal(JSON.parse(options.body).account_id,profile.account_id);data={seed:1,round_id:'test-round',max_ticks:20000};}
+        else if(url.endsWith('/rounds')){assert.equal(JSON.parse(options.body).account_id,profile.account_id);assert.equal(JSON.parse(options.body).rules_version,2);data={seed:1,round_id:'test-round',max_ticks:20000,rules_version:2};}
         else if(url.endsWith('/finish')){
           const body=JSON.parse(options.body);assert.equal(body.account_id,profile.account_id);assert.equal(body.score,undefined);
           if(failSave){status=503;data={detail:'Offline'};}
-          else{const verified=new Game(1),changes=new Map(body.turns.map(t=>[t.tick,t.direction]));for(let t=1;t<=body.ticks;t++)verified.step(changes.get(t)??null);assert(verified.over);profile.best_score=Math.max(profile.best_score,verified.score);data={score:verified.score,profile:{...profile}};}
+          else{const verified=new Game(1,2),changes=new Map(body.turns.map(t=>[t.tick,t.direction]));for(let t=1;t<=body.ticks;t++)verified.step(changes.get(t)??null);assert(verified.over);profile.best_score=Math.max(profile.best_score,verified.score);data={score:verified.score,profile:{...profile}};}
         } else throw Error(url);
         return {ok:status===200,status,json:()=>data};
       },
@@ -94,16 +99,23 @@ export async function runSnakeTests() {
   guest.tick();guest.tick();guest.key('w');
   for(let i=0;i<11;i++)guest.tick();
   assert.equal(guest.get('snake-score').textContent,10);
+  assert.equal(guest.get('snake-lives').textContent,1);
+  assert.equal(guest.get('snake-pause').textContent,'Brug næste liv');
+  assert.equal(guest.storage.get('jul2026-snake-guest-best'),undefined);
+  guest.get('snake-pause').click();guest.drain();for(let i=0;i<10;i++)guest.tick();
+  assert.equal(guest.get('snake-lives').textContent,0);
   assert.equal(guest.storage.get('jul2026-snake-guest-best'),'10');
-  assert.equal(guest.audio.tones.length,18); // Start 10 + gift 4 + death 4.
+  assert.equal(guest.audio.tones.length,20); // Start 10 + gift 4 + lost life 2 + final death 4.
   assert(!guest.calls.some(c=>c.url.endsWith('/rounds')||c.url.endsWith('/finish')));
   assert.deepEqual(guest.renderProbe(),{x:[231,242,253],paused:[231,231,231],reduced:253});
   guest.start();guest.hidden();assert.equal(guest.tick(),false);assert.equal(guest.frame(),false);assert.equal(guest.get('snake-pause').textContent,'Fortsæt');
-  assert(guest.audio.stops.length>=18); // Pausing also stops any scheduled sounds.
+  assert(guest.audio.stops.length>=20); // Pausing also stops any scheduled sounds.
+  assert.deepEqual(guest.calls.filter(c=>c.url.endsWith('/events')).map(c=>JSON.parse(c.options.body).action),['open','replay']);
 
   const quiet=harness();quiet.open();quiet.get('snake-sound').click();quiet.start();
   assert.equal(quiet.audio.contexts.length,0);assert.equal(quiet.get('sound').getAttribute('aria-pressed'),'false');
-  for(let i=0;i<10;i++)quiet.tick();assert.equal(quiet.audio.tones.length,0);assert(!quiet.get('snake-start').hidden);
+  for(let i=0;i<10;i++)quiet.tick();quiet.get('snake-pause').click();quiet.drain();for(let i=0;i<10;i++)quiet.tick();
+  assert.equal(quiet.audio.tones.length,0);assert(!quiet.get('snake-start').hidden);
 
   const fast=harness({account_id:21,best_score:0,display_name:'',is_public:false});fast.open();fast.start();
   fast.key('ArrowUp');fast.key('ArrowLeft'); // Two quick corners before the next simulation step.
@@ -112,6 +124,7 @@ export async function runSnakeTests() {
   fast.tick();assert.equal(fast.heading(),Math.PI);
   fast.tick();assert.equal(fast.heading(),Math.PI);
   for(let i=0;i<12;i++)fast.tick();
+  fast.get('snake-pause').click();fast.drain();for(let i=0;i<10;i++)fast.tick();
   const fastResult=JSON.parse(fast.calls.find(c=>c.url.endsWith('/finish')).options.body);
   assert.deepEqual(fastResult.turns,[{tick:1,direction:3},{tick:2,direction:2}]);
 
@@ -123,6 +136,8 @@ export async function runSnakeTests() {
   user.tick();user.tick();
   user.dpad[3].emit('pointerdown');user.drain();
   user.failSave(true);for(let i=0;i<11;i++)user.tick();
+  assert.equal(user.calls.filter(c=>c.url.endsWith('/finish')).length,0);
+  user.get('snake-pause').click();user.drain();for(let i=0;i<10;i++)user.tick();
   assert.equal(user.get('snake-retry').hidden,false);assert(user.get('snake-start').disabled);
   user.failSave(false);user.get('snake-retry').click();user.drain();assert.equal(user.profile().best_score,10);
   assert.equal(user.get('snake-retry').hidden,true);assert(!user.get('snake-start').disabled);

@@ -4,6 +4,7 @@ import secrets
 import unicodedata
 from datetime import timedelta
 from uuid import uuid4, UUID
+from typing import Literal
 from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, StrictInt, StrictBool
@@ -11,9 +12,10 @@ from sqlalchemy import select, update, delete, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import CalendarSnakeProfile as Profile, CalendarSnakeRound as Round
+from app.models import CalendarSnakeProfile as Profile, CalendarSnakeRound as Round, CalendarSnakeEvent
 from app.services import christmas_accounts as accounts
 from app.services import christmas_snake as rules
+from app.services.calendar_client import client_metadata
 
 router = APIRouter(prefix="/Jul2026/api/snake")
 HEADERS = {"Cache-Control": "no-store"}
@@ -21,6 +23,31 @@ HEADERS = {"Cache-Control": "no-store"}
 
 class Identity(BaseModel):
     account_id: StrictInt = Field(gt=0)
+
+
+class Start(Identity):
+    rules_version: StrictInt = Field(default=1, ge=1, le=2)
+
+
+class Click(BaseModel):
+    event_id: UUID
+    action: Literal['open', 'replay']
+
+
+@router.post("/events")
+def log_click(body: Click, request: Request, db: Session = Depends(get_db)):
+    accounts.require_same_origin(request)
+    person = accounts.visitor(request, db)
+    person_id = person.id if person else None
+    event_id = str(body.event_id)
+    inserted = db.execute(accounts.insert_for(db, CalendarSnakeEvent).values(id=event_id, visitor_id=person_id, year=accounts.YEAR, action=body.action, clicked_at=accounts.utcnow(), **client_metadata(request)).on_conflict_do_nothing(index_elements=[CalendarSnakeEvent.id])).rowcount
+    if not inserted:
+        original = db.get(CalendarSnakeEvent, event_id)
+        if original.visitor_id != person_id or original.action != body.action:
+            db.rollback()
+            raise HTTPException(409, "Klikket tilhører en anden hændelse.")
+    db.commit()
+    return JSONResponse({"ok": True}, headers=HEADERS)
 
 
 class Preferences(Identity):
@@ -88,7 +115,7 @@ def leaderboard(db: Session = Depends(get_db)):
 
 
 @router.post("/rounds")
-def start(body: Identity, request: Request, db: Session = Depends(get_db)):
+def start(body: Start, request: Request, db: Session = Depends(get_db)):
     accounts.require_same_origin(request)
     person = person_for(request, db, body.account_id)
     now = accounts.utcnow()
@@ -97,10 +124,10 @@ def start(body: Identity, request: Request, db: Session = Depends(get_db)):
         raise HTTPException(429, "Vent et øjeblik, før du starter flere spil.")
     # Old abandoned rounds contain no record and can be removed on the next start.
     db.execute(delete(Round).where(Round.visitor_id == person.id, Round.started_at < now - timedelta(days=2)))
-    round = Round(id=str(uuid4()), visitor_id=person.id, year=accounts.YEAR, seed=secrets.randbelow(2147483646) + 1, started_at=now)
+    round = Round(id=str(uuid4()), visitor_id=person.id, year=accounts.YEAR, seed=secrets.randbelow(2147483646) + 1, started_at=now, rules_version=body.rules_version)
     db.add(round)
     db.commit()
-    return JSONResponse({"round_id": round.id, "seed": round.seed, "max_ticks": rules.MAX_TICKS}, headers=HEADERS)
+    return JSONResponse({"round_id": round.id, "seed": round.seed, "max_ticks": rules.MAX_TICKS, "rules_version": round.rules_version}, headers=HEADERS)
 
 
 @router.post("/rounds/{round_id}/finish")
@@ -119,7 +146,7 @@ def finish(round_id: UUID, body: Finish, request: Request, db: Session = Depends
     if now - round.started_at > timedelta(hours=2):
         raise HTTPException(422, "Spilrunden er udløbet. Start et nyt spil.")
     try:
-        game = rules.replay(round.seed, body.ticks, body.turns)
+        game = rules.replay(round.seed, body.ticks, body.turns, round.rules_version)
     except ValueError as error:
         raise HTTPException(422, str(error))
     if game.elapsed_ms > (now - round.started_at).total_seconds() * 1000 + 250:

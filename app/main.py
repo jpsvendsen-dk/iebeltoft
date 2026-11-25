@@ -29,6 +29,7 @@ _MIGRATIONS = [
     "ALTER TABLE calendar_door_events ADD COLUMN ip_address VARCHAR(45)",
     "ALTER TABLE calendar_door_events ADD COLUMN device_type VARCHAR(120)",
     "ALTER TABLE calendar_door_events ADD COLUMN user_agent VARCHAR(512)",
+    "ALTER TABLE calendar_snake_rounds ADD COLUMN rules_version INTEGER NOT NULL DEFAULT 1",
 ]
 for _sql in _MIGRATIONS:
     try:

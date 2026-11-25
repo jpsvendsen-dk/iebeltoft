@@ -7,7 +7,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import select, func, update, delete
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import CalendarVisitor, CalendarDoorEvent, CalendarLoginEvent, CalendarOpenedDoor
+from app.models import CalendarVisitor, CalendarDoorEvent, CalendarLoginEvent, CalendarOpenedDoor, CalendarSnakeEvent
 from app.auth import kræv_login
 from app.services import christmas_accounts as accounts
 from app.services.christmas_access import YEAR, TZ
@@ -55,8 +55,9 @@ def settings(request: Request, q: str = Query(default="", max_length=254), page:
     ids = [person.id for person in people]
     door_counts = dict(db.execute(select(CalendarDoorEvent.visitor_id, func.count()).where(CalendarDoorEvent.visitor_id.in_(ids), CalendarDoorEvent.year == YEAR).group_by(CalendarDoorEvent.visitor_id)).all()) if ids else {}
     login_counts = dict(db.execute(select(CalendarLoginEvent.visitor_id, func.count()).where(CalendarLoginEvent.visitor_id.in_(ids), CalendarLoginEvent.year == YEAR).group_by(CalendarLoginEvent.visitor_id)).all()) if ids else {}
+    snake_counts = dict(db.execute(select(CalendarSnakeEvent.visitor_id, func.count()).where(CalendarSnakeEvent.visitor_id.in_(ids), CalendarSnakeEvent.year == YEAR).group_by(CalendarSnakeEvent.visitor_id)).all()) if ids else {}
     messages = {"added": "Profilen er tilføjet.", "existing": "E-mailadressen findes allerede. Adgangen er bevaret; brug Gem adgang i listen for at ændre den.", "updated": "Brugerens adgang er gemt.", "reset": "Alle brugerens låger er lukket. Historikken, login og adgangen er bevaret. Kalenderen opdateres ved næste genindlæsning eller automatiske opdatering."}
-    return templates.TemplateResponse(request, "admin/christmas_settings.html", {"request": request, "aktiv_side": "christmas_settings", "people": people, "door_counts": door_counts, "login_counts": login_counts, "q": q, "page": page, "total": count, "has_next": page * PAGE_SIZE < count, "csrf": csrf_token(request), "message": messages.get(request.query_params.get("saved"), "")}, headers={"Cache-Control": "no-store"})
+    return templates.TemplateResponse(request, "admin/christmas_settings.html", {"request": request, "aktiv_side": "christmas_settings", "people": people, "door_counts": door_counts, "login_counts": login_counts, "snake_counts": snake_counts, "q": q, "page": page, "total": count, "has_next": page * PAGE_SIZE < count, "csrf": csrf_token(request), "message": messages.get(request.query_params.get("saved"), "")}, headers={"Cache-Control": "no-store"})
 
 
 @router.post("/indstillinger/tilfoej")
@@ -107,15 +108,15 @@ def reset_progress(person_id: int, request: Request, csrf: str = Form(...), conf
 
 
 @router.get("/historik")
-def history(request: Request, email: str = Query(default="", max_length=254), day: str = Query(default="", pattern=r"^(?:[1-9]|1[0-9]|2[0-4])?$"), kind: str = Query(default="doors", pattern="^(doors|login)$"), page: int = Query(default=1, ge=1), db: Session = Depends(get_db)):
+def history(request: Request, email: str = Query(default="", max_length=254), day: str = Query(default="", pattern=r"^(?:[1-9]|1[0-9]|2[0-4])?$"), kind: str = Query(default="doors", pattern="^(doors|login|snake)$"), page: int = Query(default=1, ge=1), db: Session = Depends(get_db)):
     redirect = kræv_login(request)
     if redirect:
         return redirect
     email = email.strip().lower()
     day = int(day) if day and kind == "doors" else None
-    model = CalendarLoginEvent if kind == "login" else CalendarDoorEvent
-    stamp = CalendarLoginEvent.logged_at if kind == "login" else CalendarDoorEvent.clicked_at
-    query = select(model, CalendarVisitor.email).join(CalendarVisitor).where(model.year == YEAR)
+    model = {"login": CalendarLoginEvent, "doors": CalendarDoorEvent, "snake": CalendarSnakeEvent}[kind]
+    stamp = model.logged_at if kind == "login" else model.clicked_at
+    query = select(model, CalendarVisitor.email).outerjoin(CalendarVisitor).where(model.year == YEAR)
     if email:
         query = query.where(CalendarVisitor.email == email)
     if day is not None:
@@ -126,7 +127,8 @@ def history(request: Request, email: str = Query(default="", max_length=254), da
     events = []
     for event, address in rows:
         timestamp = event.logged_at if kind == "login" else event.clicked_at
-        events.append({"email": address, "day": None if kind == "login" else event.day, "time": timestamp.replace(tzinfo=timezone.utc).astimezone(TZ).strftime("%d.%m.%Y kl. %H:%M:%S %Z"), "iso": timestamp.replace(tzinfo=timezone.utc).isoformat(), "result": "Logget ind" if kind == "login" else labels[event.result], "ip": event.ip_address, "device": event.device_type, "user_agent": event.user_agent})
+        result = "Logget ind" if kind == "login" else ({"open": "Spil Jule-Snake", "replay": "Spil igen"}[event.action] if kind == "snake" else labels[event.result])
+        events.append({"email": address or "Gæst (uden login)", "day": event.day if kind == "doors" else None, "time": timestamp.replace(tzinfo=timezone.utc).astimezone(TZ).strftime("%d.%m.%Y kl. %H:%M:%S %Z"), "iso": timestamp.replace(tzinfo=timezone.utc).isoformat(), "result": result, "ip": event.ip_address, "device": event.device_type, "user_agent": event.user_agent})
     return templates.TemplateResponse(request, "admin/christmas_history.html", {"request": request, "aktiv_side": "christmas_history", "events": events, "email": email, "day": day, "kind": kind, "page": page, "total": total, "has_next": page * PAGE_SIZE < total, "deleted": request.query_params.get("deleted") == "yes"}, headers={"Cache-Control": "no-store"})
 
 
@@ -136,7 +138,7 @@ def delete_history_confirmation(request: Request, person_id: int | None = Query(
     if redirect:
         return redirect
     person = history_person(db, person_id)
-    counts = {name: db.scalar(select(func.count()).select_from(model).where(history_scope(model, person_id))) for name, model in (("login", CalendarLoginEvent), ("doors", CalendarDoorEvent))}
+    counts = {name: db.scalar(select(func.count()).select_from(model).where(history_scope(model, person_id))) for name, model in (("login", CalendarLoginEvent), ("doors", CalendarDoorEvent), ("snake", CalendarSnakeEvent))}
     return templates.TemplateResponse(request, "admin/christmas_delete_history.html", {"request": request, "aktiv_side": "christmas_history", "person": person, "counts": counts, "csrf": csrf_token(request)}, headers={"Cache-Control": "no-store"})
 
 
@@ -146,7 +148,7 @@ def delete_history(request: Request, csrf: str = Form(...), confirm: str = Form(
     if confirm != "delete-history":
         raise HTTPException(400, "Bekræft sletningen på historikkens sletteside.")
     history_person(db, person_id)
-    for model in (CalendarDoorEvent, CalendarLoginEvent):
+    for model in (CalendarDoorEvent, CalendarLoginEvent, CalendarSnakeEvent):
         db.execute(delete(model).where(history_scope(model, person_id)))
     db.commit()
     return RedirectResponse("/admin/jul2026/historik?deleted=yes", status_code=303)

@@ -164,3 +164,16 @@ class CalendarSnakeRound(Base):
     finished_at = Column(DateTime)
     score = Column(Integer)
     submission_hash = Column(String(64))
+    rules_version = Column(Integer, nullable=False, default=1, server_default="1")
+
+
+class CalendarSnakeEvent(Base):
+    __tablename__ = "calendar_snake_events"
+    id = Column(String(36), primary_key=True)
+    visitor_id = Column(Integer, ForeignKey("calendar_visitors.id"), index=True)
+    year = Column(Integer, nullable=False)
+    action = Column(String(12), nullable=False)
+    clicked_at = Column(DateTime, nullable=False, index=True)
+    ip_address = Column(String(45))
+    device_type = Column(String(120))
+    user_agent = Column(String(512))

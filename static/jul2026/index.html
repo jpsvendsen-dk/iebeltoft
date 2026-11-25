@@ -8,9 +8,9 @@
   <title>Jul på torvet · Julekalender 2026 · iebeltoft.dk</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='85'%3E🎄%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="/static/jul2026/calendar.css?v=16">
-  <link rel="stylesheet" href="/static/jul2026/snake.css?v=2">
+  <link rel="stylesheet" href="/static/jul2026/snake.css?v=5">
   <script src="/static/jul2026/calendar.js?v=16" defer></script>
-  <script type="module" src="/static/jul2026/snake.js?v=4"></script>
+  <script type="module" src="/static/jul2026/snake.js?v=5"></script>
 </head>
 <body>
   <div class="christmas-world">
@@ -42,12 +42,12 @@
     <header class="snake-heading"><p class="eyebrow">EN LILLE JULEPAUSE</p><h2 id="snake-title">Jule-Snake</h2></header>
     <div class="snake-layout">
       <section class="snake-play" aria-label="Spilleområde">
-        <div class="snake-scores"><span>Point <strong id="snake-score">0</strong></span><span>Din rekord <strong id="snake-best">0</strong></span></div>
+        <div class="snake-scores"><span>Point <strong id="snake-score">0</strong></span><span>Liv <strong id="snake-lives">2</strong></span><span>Din rekord <strong id="snake-best">0</strong></span></div>
         <canvas id="snake-board" width="440" height="440" tabindex="0" role="img" aria-label="Snake-spilleplade: saml gaver med piletaster, WASD eller swipe. Undgå kanten og din egen krop.">Din browser understøtter ikke spillepladen.</canvas>
         <div class="snake-toolbar"><button id="snake-start" type="button">Start spil</button><button id="snake-pause" type="button" hidden>Pause</button><button id="snake-sound" type="button" aria-pressed="true" aria-label="Slå spillets og kalenderens lyd til eller fra">♫ Lyd til</button><button id="snake-retry" type="button" hidden>Prøv at gemme igen</button><button id="snake-reload" type="button" hidden>Hent profil igen</button></div>
         <div class="snake-dpad" role="group" aria-label="Styr slangen"><button type="button" data-snake-direction="3" aria-label="Op">↑</button><button type="button" data-snake-direction="2" aria-label="Venstre">←</button><button type="button" data-snake-direction="1" aria-label="Ned">↓</button><button type="button" data-snake-direction="0" aria-label="Højre">→</button></div>
         <p id="snake-status" role="status" aria-live="polite">Saml gaver, og undgå kanten og din egen hale. 10 point pr. gave.</p>
-        <p class="snake-hint">Brug piletaster/WASD, knapperne eller swipe på spillepladen. Spillet pauses, når du forlader det.</p>
+        <p class="snake-hint">Brug piletaster/WASD, knapperne eller swipe på spillepladen. Spillet pauses, når du forlader det. 2 liv og ét ekstra, når du kommer over 500 point.</p><p class="snake-hint">Klik på spilknapper registreres med tidspunkt, IP-adresse og enhed. Administratoren kan se historikken.</p>
       </section>
       <aside class="snake-social" aria-label="Profil og topliste">
         <p id="snake-profile-note"></p><button type="button" id="snake-login">Log ind for at gemme din rekord</button>

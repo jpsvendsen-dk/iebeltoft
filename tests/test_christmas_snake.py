@@ -1,10 +1,12 @@
 import unittest
+import ast
+from pathlib import Path
 from datetime import timedelta
 from types import SimpleNamespace
 from uuid import uuid4
 from unittest.mock import patch
-from sqlalchemy import select
-from app.models import CalendarSnakeProfile as Profile, CalendarSnakeRound as Round, CalendarVisitor
+from sqlalchemy import select, create_engine
+from app.models import CalendarSnakeProfile as Profile, CalendarSnakeRound as Round, CalendarVisitor, CalendarSnakeEvent
 from app.routers import christmas_snake as routes
 from app.services.christmas_snake import Game, replay, MAX_TICKS
 import test_christmas_accounts as account_tests
@@ -14,6 +16,43 @@ ROOT = '/Jul2026/api/snake'
 
 
 class SnakeRulesTests(unittest.TestCase):
+    def test_round_migration_preserves_legacy_rules(self):
+        source=ast.parse(Path('app/main.py').read_text(encoding='utf-8'))
+        migrations=next(ast.literal_eval(n.value) for n in source.body if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='_MIGRATIONS' for t in n.targets))
+        sql=next(s for s in migrations if s.startswith('ALTER TABLE calendar_snake_rounds'))
+        engine=create_engine('sqlite://')
+        with engine.begin() as db:
+            db.exec_driver_sql('CREATE TABLE calendar_snake_rounds (id VARCHAR(36) PRIMARY KEY, seed INTEGER)')
+            db.exec_driver_sql("INSERT INTO calendar_snake_rounds (id,seed) VALUES ('old-round',42)")
+            db.exec_driver_sql(sql)
+            self.assertEqual(tuple(db.exec_driver_sql('SELECT id,seed,rules_version FROM calendar_snake_rounds').one()),('old-round',42,1))
+        engine.dispose()
+    def test_two_lives_preserve_score_and_replay(self):
+        game=Game(1,2)
+        for tick in range(1,14):
+            game.step(3 if tick==3 else None)
+        self.assertEqual((game.score,game.lives,game.life_lost,game.over),(10,1,True,False))
+        with self.assertRaises(ValueError):
+            replay(1,13,[SimpleNamespace(tick=3,direction=3)],2)
+        game.respawn()
+        self.assertEqual(game.body,[(10,10),(9,10),(8,10)])
+        for _ in range(10):game.step()
+        self.assertTrue(game.over)
+        self.assertEqual((game.lives,game.score),(0,10))
+        verified=replay(1,23,[SimpleNamespace(tick=3,direction=3)],2)
+        self.assertEqual((verified.lives,verified.score),(0,10))
+
+    def test_bonus_life_only_once_and_strictly_above_500(self):
+        game=Game(1,2)
+        game.score=490;game.food=(11,10);game.step()
+        self.assertEqual((game.score,game.lives,game.bonus_life),(500,2,False))
+        game.food=(12,10);game.step()
+        self.assertEqual((game.score,game.lives,game.bonus_life),(510,3,True))
+        game.food=(13,10);game.step()
+        self.assertEqual(game.lives,3)
+        game.lives=2;game.food=(14,10);game.step()
+        self.assertEqual(game.lives,2)
+
     def test_seed_growth_collision_and_replay(self):
         game = replay(1, 13, [SimpleNamespace(tick=3, direction=3)])
         self.assertEqual(game.score, 10)
@@ -153,3 +192,35 @@ class SnakeApiTests(unittest.TestCase):
         for _ in range(20):
             self.start(person)
         self.assertEqual(self.client.post(ROOT+'/rounds',headers=HEADERS,json={'account_id':person['id']}).status_code,429)
+
+    def test_versioned_round_preserves_old_games_and_validates_new_lives(self):
+        person=self.login()
+        response=self.client.post(ROOT+'/rounds',headers=HEADERS,json={'account_id':person['id'],'rules_version':2})
+        self.assertEqual(response.status_code,200)
+        round=response.json();self.assertEqual(round['rules_version'],2)
+        self.now+=timedelta(seconds=4)
+        self.assertEqual(self.finish(person,round).status_code,422)
+        self.assertEqual(self.finish(person,round,ticks=23).status_code,200)
+        old=self.start(person)
+        self.assertEqual(old['rules_version'],1)
+        self.now+=timedelta(seconds=3)
+        self.assertEqual(self.finish(person,old).status_code,200)
+
+    def test_click_logs_server_metadata_guest_and_idempotency(self):
+        body={'event_id':str(uuid4()),'action':'open'}
+        self.client.headers['User-Agent']='iPhone Mobile Safari/604.1'
+        self.assertEqual(self.client.post(ROOT+'/events',headers=HEADERS,json=body).status_code,200)
+        self.assertEqual(self.client.post(ROOT+'/events',headers=HEADERS,json=body).status_code,200)
+        person=self.login()
+        self.assertEqual(self.client.post(ROOT+'/events',headers=HEADERS,json=body).status_code,409)
+        body={'event_id':str(uuid4()),'action':'replay'}
+        self.assertEqual(self.client.post(ROOT+'/events',headers=HEADERS,json=body).status_code,200)
+        self.assertEqual(self.client.post(ROOT+'/events',json=body).status_code,403)
+        self.assertEqual(self.client.post(ROOT+'/events',headers=HEADERS,json={'event_id':str(uuid4()),'action':'wrong'}).status_code,422)
+        with self.Session() as db:
+            events=db.scalars(select(CalendarSnakeEvent).order_by(CalendarSnakeEvent.clicked_at,CalendarSnakeEvent.action)).all()
+            self.assertEqual(len(events),2)
+            self.assertIsNone(events[0].visitor_id)
+            self.assertEqual(events[1].visitor_id,person['id'])
+            self.assertIn('iPhone',events[0].device_type)
+            self.assertEqual(events[0].clicked_at,self.now)
