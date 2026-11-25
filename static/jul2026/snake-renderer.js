@@ -54,7 +54,6 @@ export class SnakeRenderer {
     if(fresh || this.tick!==game.tick){
       const old=this.scene;
       this.previous=fresh?game.body.map(p=>[...p]):old.body;
-      this.previousDirection=fresh?game.direction:old.direction;
       this.duration=game.interval;
       if(!fresh && game.score>old.score && old.food && !this.motion?.matches){
         this.effects.push({x:(old.food[0]+.5)*CELL,y:(old.food[1]+.5)*CELL,time:now});
@@ -113,10 +112,10 @@ export class SnakeRenderer {
     const green=c.createLinearGradient(0,0,VIEW,VIEW);green.addColorStop(0,'#c1e796');green.addColorStop(.5,'#76b480');green.addColorStop(1,'#39866f');
     c.strokeStyle=green;c.lineWidth=CELL*.7;path();c.stroke();
     c.strokeStyle='#e4ffbf38';c.lineWidth=CELL*.2;path();c.stroke();
-    const [hx,hy]=points[0],t=this.fraction(now);
-    let angle=(this.scene.direction-this.previousDirection+6)%4-2;
-    angle=(this.previousDirection+angle*t)*Math.PI/2;
-    c.translate(hx,hy);c.rotate(angle);
+    // Position stays fluid, but facing follows the accepted turn immediately.
+    // Tweening facing over a full tick made a correct turn look unresponsive.
+    const [hx,hy]=points[0];
+    c.translate(hx,hy);c.rotate(this.scene.direction*Math.PI/2);
     const head=c.createLinearGradient(-10,-10,9,10);head.addColorStop(0,'#e0f6ba');head.addColorStop(1,'#91ca88');
     c.fillStyle=head;c.beginPath();c.ellipse(0,0,11,9,0,0,Math.PI*2);c.fill();
     for(const y of [-4,4]){c.fillStyle='#fffced';c.beginPath();c.ellipse(4,y,3.8,3.3,0,0,Math.PI*2);c.fill();c.fillStyle='#153a35';c.beginPath();c.arc(5,y,1.7,0,Math.PI*2);c.fill();c.fillStyle='#fff';c.beginPath();c.arc(5.5,y-.6,.6,0,Math.PI*2);c.fill();}

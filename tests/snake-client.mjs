@@ -18,10 +18,10 @@ export async function runSnakeTests() {
   const speed=new Game(1);speed.score=50;assert.equal(speed.interval,150);speed.score=500;assert.equal(speed.interval,80);
 
   function harness(initialProfile=null) {
-    const nodes=new Map(),storage=new Map(),calls=[],docEvents={},winEvents={},timers=new Map(),frames=new Map();
+    const nodes=new Map(),storage=new Map(),calls=[],docEvents={},winEvents={},timers=new Map(),frames=new Map(),headings=[];
     let clock=0;
     let profile=initialProfile?{...initialProfile}:null, seq=0, failSave=false, profileFails=false;
-    const context2d=new Proxy({}, {get:(target,key)=>target[key]??(key.startsWith('create')?()=>({addColorStop(){}}):()=>{}),set:(target,key,value)=>(target[key]=value,true)});
+    const context2d=new Proxy({rotate:angle=>headings.push(angle)}, {get:(target,key)=>target[key]??(key.startsWith('create')?()=>({addColorStop(){}}):()=>{}),set:(target,key,value)=>(target[key]=value,true)});
     class Element {
       constructor(){this.listeners={};this.children=[];this.open=false;this.width=440;this.height=440;this.value='';this.checked=false;this.tagName='DIV';this.dataset={};}
       addEventListener(name,fn){(this.listeners[name]??=[]).push(fn);}
@@ -70,7 +70,8 @@ export async function runSnakeTests() {
         r.motion={matches:true};r.update(model,'running');const reduced=r.positions(now)[0][0];r.stop();
         return {x,paused,reduced};
       })())`,ctx)),
-      key(key,target=get('snake-board')){emit(docEvents,'keydown',{key,target});},
+      heading:()=>headings.at(-1),
+      key(key,target=get('snake-board'),options={}){emit(docEvents,'keydown',{key,target,...options});},
       hidden(){document.hidden=true;emit(docEvents,'visibilitychange');},orient(){winEvents.orientationchange();drain();},
       setProfile:p=>{profile=p;},failSave:value=>{failSave=value;},profileFails:value=>{profileFails=value;},profile:()=>profile};
   }
@@ -85,6 +86,20 @@ export async function runSnakeTests() {
   assert(!guest.calls.some(c=>c.url.endsWith('/rounds')||c.url.endsWith('/finish')));
   assert.deepEqual(guest.renderProbe(),{x:[231,242,253],paused:[231,231,231],reduced:253});
   guest.start();guest.hidden();assert.equal(guest.tick(),false);assert.equal(guest.frame(),false);assert.equal(guest.get('snake-pause').textContent,'Fortsæt');
+
+  const fast=harness({account_id:21,best_score:0,display_name:'',is_public:false});fast.open();fast.start();
+  fast.key('ArrowUp');fast.key('ArrowLeft'); // Two quick corners before the next simulation step.
+  fast.tick();assert.equal(fast.heading(),3*Math.PI/2); // Facing changes at the start, not end, of the tween.
+  fast.key('ArrowUp',undefined,{repeat:true}); // Holding the old key must not add an unwanted turn.
+  fast.tick();assert.equal(fast.heading(),Math.PI);
+  fast.tick();assert.equal(fast.heading(),Math.PI);
+  for(let i=0;i<12;i++)fast.tick();
+  const fastResult=JSON.parse(fast.calls.find(c=>c.url.endsWith('/finish')).options.body);
+  assert.deepEqual(fastResult.turns,[{tick:1,direction:3},{tick:2,direction:2}]);
+
+  const pausedInput=harness();pausedInput.open();pausedInput.start();pausedInput.key('ArrowUp');
+  pausedInput.get('snake-pause').click();pausedInput.get('snake-pause').click();pausedInput.drain();
+  pausedInput.tick();assert.equal(pausedInput.heading(),0); // No old queued input after a pause.
 
   const user=harness({account_id:5,best_score:0,display_name:'',is_public:false});user.open();user.start();
   user.tick();user.tick();

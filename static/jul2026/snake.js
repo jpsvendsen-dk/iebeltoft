@@ -1,10 +1,10 @@
 import {SnakeGame} from './snake-core.js?v=1';
-import {SnakeRenderer} from './snake-renderer.js?v=2';
+import {SnakeRenderer} from './snake-renderer.js?v=3';
 
 (() => {
   const $ = id => document.getElementById(id), dialog = $('snake-dialog'), canvas = $('snake-board');
   const renderer = new SnakeRenderer(canvas), preview = new SnakeGame(2026), api = '/Jul2026/api/snake';
-  let game = null, round = null, turns = [], nextDirection = null, timer;
+  let game = null, round = null, turns = [], directionQueue = [], timer;
   let phase = 'idle', profile = null, loaded = false, loading = false, saving = false, pending = false, failedSave = false;
   let loadGeneration = 0, guestBest = 0;
   try { guestBest = Math.max(0,Math.min(3970,Number(localStorage.getItem('jul2026-snake-guest-best'))||0)); } catch (_) {}
@@ -46,7 +46,7 @@ import {SnakeRenderer} from './snake-renderer.js?v=2';
     try {
       const data=await request('/profile');if(generation!==loadGeneration)return;
       if(identity(profile)!==identity(data.profile) && game){
-        clearTimeout(timer);game=null;round=null;turns=[];phase='idle';pending=failedSave=false;
+        clearTimeout(timer);game=null;round=null;turns=[];directionQueue=[];phase='idle';pending=failedSave=false;
         message('Dit login er ændret. Start et nyt spil på den aktuelle profil.');
       }
       profile=data.profile;loaded=true;
@@ -55,7 +55,7 @@ import {SnakeRenderer} from './snake-renderer.js?v=2';
     } catch(error){loaded=false;message(error.message||'Din profil kunne ikke hentes. Prøv igen.');}
     finally{if(generation===loadGeneration){loading=false;controls();draw();}}
   }
-  function pause() {if(phase==='running'){clearTimeout(timer);phase='paused';message('Spillet er på pause. Tryk Fortsæt, når du er klar.');controls();draw();}}
+  function pause() {if(phase==='running'){clearTimeout(timer);directionQueue=[];phase='paused';message('Spillet er på pause. Tryk Fortsæt, når du er klar.');controls();draw();}}
   async function saveResult() {
     if(!pending || saving || !round)return;
     saving=true;failedSave=false;message('Gemmer resultatet på din profil …');controls();
@@ -77,8 +77,9 @@ import {SnakeRenderer} from './snake-renderer.js?v=2';
     clearTimeout(timer);
     timer=setTimeout(()=>{
       if(phase!=='running')return;
-      if(nextDirection!==null){turns.push({tick:game.tick+1,direction:nextDirection});}
-      game.step(nextDirection);nextDirection=null;controls();draw();
+      const direction=directionQueue.shift()??null;
+      if(direction!==null){turns.push({tick:game.tick+1,direction});}
+      game.step(direction);controls();draw();
       if(game.over)finish();else schedule();
     },game.interval);
   }
@@ -91,7 +92,7 @@ import {SnakeRenderer} from './snake-renderer.js?v=2';
       let seed;
       if(profile){const started=await request('/rounds',{account_id:profile.account_id});round={...started,account_id:profile.account_id};seed=started.seed;}
       else{round=null;const random=new Uint32Array(1);crypto.getRandomValues(random);seed=random[0]||1;}
-      game=new SnakeGame(seed);turns=[];nextDirection=null;phase=dialog.open&&!document.hidden?'running':'paused';
+      game=new SnakeGame(seed);turns=[];directionQueue=[];phase=dialog.open&&!document.hidden?'running':'paused';
       failedSave=false;message(phase==='running'?'God gavejagt!':'Spillet er på pause. Tryk Fortsæt.');
       if(phase==='running')schedule();
       if(phase==='running')canvas.focus({preventScroll:true});
@@ -99,8 +100,12 @@ import {SnakeRenderer} from './snake-renderer.js?v=2';
     finally{loading=false;controls();draw();}
   }
   function turn(direction) {
-    if(phase!=='running' || nextDirection!==null || direction===(game.direction+2)%4 || direction===game.direction)return;
-    nextDirection=direction;
+    if(phase!=='running' || directionQueue.length>=2)return;
+    // Validate against the previous queued turn, so a quick up/left corner is
+    // kept even while travelling right. Never queue a reverse or duplicate.
+    const planned=directionQueue.at(-1)??game.direction;
+    if(direction===(planned+2)%4 || direction===planned)return;
+    directionQueue.push(direction);
   }
   $('snake-open').addEventListener('click',()=>{
     if(!document.dispatchEvent(new Event('jul2026:snake-open',{cancelable:true})))return;
@@ -120,7 +125,7 @@ import {SnakeRenderer} from './snake-renderer.js?v=2';
   document.addEventListener('keydown',event=>{
     if(!dialog.open)return;
     if(['INPUT','TEXTAREA','SELECT'].includes(event.target.tagName))return;
-    if(keyMap[event.key]!==undefined){event.preventDefault();turn(keyMap[event.key]);}
+    if(keyMap[event.key]!==undefined){event.preventDefault();if(!event.repeat)turn(keyMap[event.key]);}
     else if(event.code==='Space'&&event.target===canvas){event.preventDefault();$('snake-pause').click();}
   });
   for(const button of dialog.querySelectorAll('[data-snake-direction]')){
