@@ -14,13 +14,13 @@ router = APIRouter()
 VERSION = "jul2026-2"
 
 # Official Charts' top 24 most-streamed Christmas songs in the UK, reversed.
-# Door 11 replaced with Mads Langer at the owner's request.
+# Doors 2, 4 and 11 replaced with Danish songs at the owner's request.
 # Rank 9 is listed under Elton John's Christmas EP: Step Into Christmas.
 SONGS = [
     ("Feliz Navidad", "José Feliciano", "N8NcQzMQN_U"),
-    ("Somewhere Only We Know", "Lily Allen", "mer6X7nOY_o"),
+    ("Der' noget i december", "Rasmus Seebach", "Mv6FViYatkU"),
     ("Sleigh Ride", "The Ronettes", "XZTzai1H9DM"),
-    ("Let It Snow! Let It Snow! Let It Snow!", "Dean Martin", "mN7LW0Y00kE"),
+    ("Tinka", "Burhan G & Frida Brygmann", "bjyw-jwPjoQ"),
     ("Holly Jolly Christmas", "Michael Bublé", "FXtPpXbrNkQ"),
     ("Mistletoe", "Justin Bieber", "LUjn3RpkcKY"),
     ("Wonderful Christmastime", "Paul McCartney", "94Ye-3C1FC8"),
