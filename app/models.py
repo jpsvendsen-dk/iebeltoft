@@ -79,6 +79,7 @@ class CalendarVisitor(Base):
     email = Column(String(254), unique=True, nullable=False)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     early_access = Column(Boolean, nullable=False, default=False, server_default=false())
+    progress_version = Column(Integer, nullable=False, default=0, server_default="0")
 
 
 class CalendarLoginLink(Base):
@@ -124,3 +125,18 @@ class CalendarDoorEvent(Base):
     day = Column(Integer, nullable=False)
     clicked_at = Column(DateTime, nullable=False)
     result = Column(String(16), nullable=False)  # opened, reopened, locked
+    progress_version = Column(Integer, nullable=False, default=0, server_default="0")
+    ip_address = Column(String(45))
+    device_type = Column(String(120))
+    user_agent = Column(String(512))
+
+
+class CalendarLoginEvent(Base):
+    __tablename__ = "calendar_login_events"
+    id = Column(Integer, primary_key=True)
+    visitor_id = Column(Integer, ForeignKey("calendar_visitors.id"), nullable=False, index=True)
+    year = Column(Integer, nullable=False)
+    logged_at = Column(DateTime, nullable=False, index=True)
+    ip_address = Column(String(45))
+    device_type = Column(String(120))
+    user_agent = Column(String(512))

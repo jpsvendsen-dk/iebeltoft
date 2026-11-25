@@ -7,7 +7,7 @@ from uuid import uuid4
 from unittest.mock import patch
 from fastapi import Request
 from sqlalchemy import select, create_engine
-from app.models import CalendarVisitor, CalendarDoorEvent
+from app.models import CalendarVisitor, CalendarDoorEvent, CalendarLoginEvent
 from app.routers import christmas, christmas_admin
 import test_christmas_accounts as account_tests
 
@@ -177,6 +177,64 @@ class CalendarHistoryTests(unittest.TestCase):
         self.assertEqual(self.click(1, person, event_id="invalid").status_code, 422)
         self.assertEqual(self.events(), [])
 
+    def test_reset_preserves_history_access_and_invalidates_old_devices(self):
+        person = self.login()
+        admin, csrf = self.admin()
+        self.access(admin, csrf, person, True)
+        event_id = str(uuid4())
+        self.click(24, person, event_id=event_id)
+        self.now += timedelta(minutes=2)
+        second = self.device()
+        self.login(client=second)
+        path = f"/admin/jul2026/indstillinger/brugere/{person['id']}/nulstil"
+        self.assertEqual(self.client.get(path, follow_redirects=False).status_code, 303)
+        self.assertEqual(admin.get(path).status_code, 200)
+        self.assertEqual(admin.post(path, data={"csrf": "bad", "confirm": "reset"}).status_code, 403)
+        self.assertEqual(admin.post(path, data={"csrf": csrf, "confirm": "no"}).status_code, 400)
+        self.assertEqual(admin.post(path, data={"csrf": csrf, "confirm": "reset"}, follow_redirects=False).status_code, 303)
+        for client in (self.client, second):
+            profile = client.get('/Jul2026/api/account').json()['account']
+            self.assertEqual(profile['opened'], [])
+            self.assertEqual(profile['progress_version'], 1)
+            self.assertTrue(profile['early_access'])
+            self.assertEqual(self.save(client, person['id'], [24]).status_code, 409)
+            self.assertEqual(self.click(24, person, client).status_code, 409)
+        self.assertEqual(len(self.events()), 1)
+        with self.Session() as db:
+            self.assertEqual(len(db.scalars(select(CalendarLoginEvent)).all()), 2)
+        settings = admin.get('/admin/jul2026/indstillinger')
+        self.assertEqual(settings.context['login_counts'][person['id']], 2)
+        self.assertEqual(settings.context['door_counts'][person['id']], 1)
+        body = {'event_id': event_id, 'account_id': person['id'], 'progress_version': 1}
+        self.assertEqual(self.client.post('/Jul2026/api/doors/24/open', headers=HEADERS, json=body).status_code, 409)
+        body['event_id'] = str(uuid4())
+        self.assertEqual(self.client.post('/Jul2026/api/doors/24/open', headers=HEADERS, json=body).status_code, 200)
+        self.assertEqual(second.get('/Jul2026/api/account').json()['account']['opened'], [24])
+
+    def test_login_and_door_metadata_and_failed_login_not_counted(self):
+        ua = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Version/18.0 Mobile/15E148 Safari/604.1'
+        self.client.headers.update({'User-Agent': ua, 'CF-Connecting-IP': '203.0.113.7'})
+        with patch.dict('os.environ', {'RENDER': 'true'}):
+            token = self.request_link()
+            response = self.client.post('/Jul2026/api/login/consume', headers=HEADERS, json={'token': token})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(self.client.post('/Jul2026/api/login/consume', headers=HEADERS, json={'token': token}).status_code, 400)
+            person = self.client.get('/Jul2026/api/account').json()['account']
+            self.click(2, person)
+        with self.Session() as db:
+            logins = db.scalars(select(CalendarLoginEvent)).all()
+            self.assertEqual(len(logins), 1)
+            for event in [*logins, *self.events()]:
+                self.assertEqual(event.ip_address, '203.0.113.7')
+                self.assertIn('iPhone', event.device_type)
+                self.assertIn('Safari', event.device_type)
+                self.assertEqual(event.user_agent, ua)
+        admin, _ = self.admin()
+        for kind in ('login', 'doors'):
+            history = admin.get('/admin/jul2026/historik', params={'kind': kind, 'email': person['email']})
+            self.assertEqual(len(history.context['events']), 1)
+            self.assertIn('203.0.113.7', history.text)
+
     def test_migration_preserves_existing_profile_and_defaults_to_locked(self):
         source = ast.parse(Path("app/main.py").read_text(encoding="utf-8"))
         migrations = next(ast.literal_eval(node.value) for node in source.body if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == "_MIGRATIONS" for target in node.targets))
@@ -187,4 +245,11 @@ class CalendarHistoryTests(unittest.TestCase):
             connection.exec_driver_sql("INSERT INTO calendar_visitors (email) VALUES ('existing@example.com')")
             connection.exec_driver_sql(upgrade)
             self.assertEqual(tuple(connection.exec_driver_sql("SELECT email, early_access FROM calendar_visitors").one()), ("existing@example.com", 0))
+            connection.exec_driver_sql("CREATE TABLE calendar_door_events (id INTEGER PRIMARY KEY, day INTEGER, result VARCHAR(20))")
+            connection.exec_driver_sql("INSERT INTO calendar_door_events (day, result) VALUES (2, 'opened')")
+            for sql in migrations:
+                if 'progress_version' in sql or sql.startswith('ALTER TABLE calendar_door_events'):
+                    connection.exec_driver_sql(sql)
+            self.assertEqual(connection.exec_driver_sql('SELECT progress_version FROM calendar_visitors').scalar(), 0)
+            self.assertEqual(tuple(connection.exec_driver_sql('SELECT day, result, progress_version, ip_address, device_type, user_agent FROM calendar_door_events').one()), (2, 'opened', 0, None, None, None))
         engine.dispose()

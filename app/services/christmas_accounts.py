@@ -5,7 +5,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 from fastapi import HTTPException
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, update
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from app.models import CalendarVisitor, CalendarLoginSession, CalendarOpenedDoor, CalendarLoginRate, CalendarLoginLink
@@ -63,6 +63,17 @@ def visitor(request, db):
 
 def opened_days(db, visitor_id):
     return list(db.scalars(select(CalendarOpenedDoor.day).where(CalendarOpenedDoor.visitor_id == visitor_id, CalendarOpenedDoor.year == YEAR).order_by(CalendarOpenedDoor.day)))
+
+
+def require_progress_version(db, person, version):
+    expected = 0 if version is None else version
+    # The conditional write locks this profile until commit on PostgreSQL and
+    # serializes writes on SQLite. A reset cannot race a stale save/open request.
+    result = db.execute(update(CalendarVisitor).where(CalendarVisitor.id == person.id, CalendarVisitor.progress_version == expected).values(progress_version=CalendarVisitor.progress_version))
+    if result.rowcount != 1:
+        db.rollback()
+        raise HTTPException(409, "Kalenderen er nulstillet eller ændret. Opdatér siden for at hente den nye kalender.")
+    db.refresh(person)
 
 
 def add_opened_days(db, visitor_id, days):

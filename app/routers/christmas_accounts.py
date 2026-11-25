@@ -8,10 +8,11 @@ from pydantic import BaseModel, Field, StrictInt
 from sqlalchemy import select, update, delete
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import CalendarVisitor, CalendarLoginLink, CalendarLoginSession
+from app.models import CalendarVisitor, CalendarLoginLink, CalendarLoginSession, CalendarLoginEvent
 from app.services import christmas_accounts as accounts
 from app.services.email import send_calendar_login
 from app.services.christmas_access import allowed_day, today
+from app.services.calendar_client import client_metadata
 
 router = APIRouter(prefix="/Jul2026")
 PRIVATE_HEADERS = {"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"}
@@ -28,6 +29,7 @@ class LoginToken(BaseModel):
 class OpenedDoors(BaseModel):
     account_id: StrictInt = Field(gt=0)
     days: list[StrictInt] = Field(max_length=24)
+    progress_version: StrictInt | None = Field(default=None, ge=0)
 
 
 @router.get("/login")
@@ -71,6 +73,7 @@ def consume_login(body: LoginToken, request: Request, db: Session = Depends(get_
     person = db.scalar(select(CalendarVisitor).where(CalendarVisitor.email == link.email))
     session = secrets.token_urlsafe(32)
     db.add(CalendarLoginSession(token_hash=accounts.digest(session), visitor_id=person.id, expires_at=now + timedelta(days=accounts.SESSION_DAYS)))
+    db.add(CalendarLoginEvent(visitor_id=person.id, year=accounts.YEAR, logged_at=now, **client_metadata(request)))
     db.commit()
     response = JSONResponse({"ok": True}, headers=PRIVATE_HEADERS)
     response.set_cookie(accounts.COOKIE, session, max_age=accounts.SESSION_DAYS * 86400, path="/Jul2026", httponly=True, secure=request.url.hostname not in {"localhost", "127.0.0.1", "::1"}, samesite="lax")
@@ -80,7 +83,7 @@ def consume_login(body: LoginToken, request: Request, db: Session = Depends(get_
 @router.get("/api/account")
 def account(request: Request, db: Session = Depends(get_db)):
     person = accounts.visitor(request, db)
-    return JSONResponse({"account": {"id": person.id, "email": person.email, "early_access": person.early_access, "opened": accounts.opened_days(db, person.id)} if person else None}, headers=PRIVATE_HEADERS)
+    return JSONResponse({"account": {"id": person.id, "email": person.email, "early_access": person.early_access, "progress_version": person.progress_version, "opened": accounts.opened_days(db, person.id)} if person else None}, headers=PRIVATE_HEADERS)
 
 
 @router.post("/api/account/opened")
@@ -91,6 +94,7 @@ def save_opened(body: OpenedDoors, request: Request, db: Session = Depends(get_d
         raise HTTPException(401, "Dit login er udløbet. Log ind igen for at gemme på tværs af enheder.")
     if person.id != body.account_id:
         raise HTTPException(409, "En anden kalender er blevet logget ind i denne browser. Opdatér siden.")
+    accounts.require_progress_version(db, person, body.progress_version)
     available = allowed_day(today(), person)
     previous = set(accounts.opened_days(db, person.id))
     if any(day < 1 or day > 24 or (day > available and day not in previous) for day in body.days):

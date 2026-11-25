@@ -56,7 +56,7 @@ export async function runTests() {
         else if(url.endsWith('/account/opened')){
           const body=JSON.parse(options.body);
           if(offline){ok=false;result={};}
-          else{assert.equal(body.account_id,current.id);current.opened=[...new Set([...current.opened,...body.days])].sort((a,b)=>a-b);result={opened:[...current.opened]};}
+          else{assert.equal(body.account_id,current.id);assert.equal(body.progress_version,current.progress_version||0);current.opened=[...new Set([...current.opened,...body.days])].sort((a,b)=>a-b);result={opened:[...current.opened]};}
         }
         else if(url.endsWith('/account'))result={account:current?{...current,opened:[...current.opened]}:null};
         else if(url.includes('/doors/')){
@@ -64,6 +64,7 @@ export async function runTests() {
           assert(url.endsWith('/open'));
           const body=JSON.parse(options.body),day=Number(url.split('/').at(-2));
           assert.match(body.event_id,/^[0-9a-f-]{36}$/);
+          assert.equal(body.progress_version,current?.progress_version||0);
           const allowed=path.startsWith('/admin/')||current?.early_access||day<=8;
           if(!allowed){ok=false;status=403;result={detail:'Lågen er låst.'};}
           else{
@@ -96,6 +97,16 @@ export async function runTests() {
   a.setAccount({id:2,email:'b@example.com',opened:[4]});a.refresh();
   assert(a.door(4).classList.contains('opened'));assert(!a.door(1).classList.contains('opened'));assert(!a.door(7).classList.contains('opened'));
   a.setAccount(null);a.refresh();assert(!a.door(4).classList.contains('opened'));assert.equal(a.get('account-open').textContent,'Gem min kalender');
+
+  const reset=harness({stored:{'jul2026-account-11':'[2,3]'},account:{id:11,email:'reset@example.com',opened:[2,3]}});
+  reset.door(4).listeners.click();reset.drain();assert(reset.get('surprise').open);
+  reset.setAccount({id:11,email:'reset@example.com',progress_version:1,opened:[]});reset.refresh();
+  for(const day of [2,3,4])assert(!reset.door(day).classList.contains('opened'));
+  assert.equal(reset.get('surprise').open,false);assert.deepEqual(reset.days(),[]);
+  reset.door(5).listeners.click();reset.drain();assert.deepEqual(reset.days(),[5]);
+  assert.deepEqual(JSON.parse(reset.storage.get('jul2026-account-11-v1')),[5]);
+  const resetLogin=harness({merge:true,stored:{'jul2026-account-11':'[2,3]','jul2026-opened':'[1,4]'},account:{id:11,email:'reset@example.com',progress_version:2,opened:[]}});
+  assert.deepEqual(resetLogin.days(),[]);assert.equal(resetLogin.storage.has('jul2026-opened'),false);
 
   const clicks=harness({account:{id:7,email:'click@example.com',opened:[]}});
   clicks.door(24).listeners.click();clicks.drain();

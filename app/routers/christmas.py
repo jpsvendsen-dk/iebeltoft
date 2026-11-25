@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import CalendarDoorEvent, CalendarOpenedDoor
 from app.services import christmas_accounts as accounts
+from app.services.calendar_client import client_metadata
 from app.services.christmas_access import YEAR, TZ, today, available_day, allowed_day
 
 router = APIRouter()
@@ -93,6 +94,7 @@ def door(day: int, request: Request, db: Session = Depends(get_db)):
 class DoorClick(BaseModel):
     event_id: UUID
     account_id: StrictInt | None = Field(default=None, gt=0)
+    progress_version: StrictInt | None = Field(default=None, ge=0)
 
 
 @router.post("/Jul2026/api/doors/{day}/open")
@@ -105,11 +107,13 @@ def open_door(day: int, body: DoorClick, request: Request, db: Session = Depends
     person = None if preview else accounts.visitor(request, db)
     if not preview and body.account_id != (person.id if person else None):
         raise HTTPException(409 if person else 401, "Dit login er ændret. Opdatér kalenderen, og prøv igen.")
+    if person:
+        accounts.require_progress_version(db, person, body.progress_version)
     permitted = day <= allowed_day(today(), person, preview)
     if person:
         event_id = str(body.event_id)
         # The unique key makes retries safe across concurrent workers.
-        inserted = db.execute(accounts.insert_for(db, CalendarDoorEvent).values(visitor_id=person.id, event_id=event_id, year=YEAR, day=day, clicked_at=accounts.utcnow(), result="opened" if permitted else "locked").on_conflict_do_nothing(index_elements=[CalendarDoorEvent.visitor_id, CalendarDoorEvent.event_id])).rowcount
+        inserted = db.execute(accounts.insert_for(db, CalendarDoorEvent).values(visitor_id=person.id, event_id=event_id, year=YEAR, day=day, clicked_at=accounts.utcnow(), result="opened" if permitted else "locked", progress_version=person.progress_version, **client_metadata(request)).on_conflict_do_nothing(index_elements=[CalendarDoorEvent.visitor_id, CalendarDoorEvent.event_id])).rowcount
         if inserted:
             if permitted:
                 first_open = db.execute(accounts.insert_for(db, CalendarOpenedDoor).values(visitor_id=person.id, year=YEAR, day=day).on_conflict_do_nothing()).rowcount
@@ -117,7 +121,7 @@ def open_door(day: int, body: DoorClick, request: Request, db: Session = Depends
                     db.execute(update(CalendarDoorEvent).where(CalendarDoorEvent.visitor_id == person.id, CalendarDoorEvent.event_id == event_id).values(result="reopened"))
         else:
             original = db.scalar(select(CalendarDoorEvent).where(CalendarDoorEvent.visitor_id == person.id, CalendarDoorEvent.event_id == event_id))
-            if original.day != day or original.year != YEAR:
+            if original.day != day or original.year != YEAR or original.progress_version != person.progress_version:
                 db.rollback()
                 raise HTTPException(409, "Dette tryk er allerede registreret for en anden låge.")
             # A retry never changes the original result or bypasses revoked access.

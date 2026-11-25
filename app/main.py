@@ -24,6 +24,11 @@ _MIGRATIONS = [
     "ALTER TABLE bookings ADD COLUMN guest_remarks TEXT",
     "ALTER TABLE settings ADD COLUMN saturday_only INTEGER DEFAULT 1",
     "ALTER TABLE calendar_visitors ADD COLUMN early_access BOOLEAN NOT NULL DEFAULT FALSE",
+    "ALTER TABLE calendar_visitors ADD COLUMN progress_version INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE calendar_door_events ADD COLUMN progress_version INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE calendar_door_events ADD COLUMN ip_address VARCHAR(45)",
+    "ALTER TABLE calendar_door_events ADD COLUMN device_type VARCHAR(120)",
+    "ALTER TABLE calendar_door_events ADD COLUMN user_agent VARCHAR(512)",
 ]
 for _sql in _MIGRATIONS:
     try:

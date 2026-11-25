@@ -1,0 +1,15 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Nulstil brugerens låger{% endblock %}
+{% block content %}
+<section class="bg-white rounded-xl shadow-sm p-6 max-w-2xl">
+  <h1 class="text-2xl font-bold text-gray-800 mb-4">Nulstil brugerens låger</h1>
+  <p class="mb-4 break-all"><strong>{{ person.email }}</strong> har {{ opened_count }} åbnede låger i kalenderen for 2026.</p>
+  <p class="mb-3">Alle 24 låger vil stå lukkede, når brugeren henter den opdaterede kalender. Tidligere gemte låger på brugerens andre enheder bliver også nulstillet ved næste opdatering.</p>
+  <p class="mb-6">Brugerens historik, login og indstilling for tidlig adgang bevares. Brugeren kan åbne de tilgængelige låger igen.</p>
+  <form method="post" action="/admin/jul2026/indstillinger/brugere/{{ person.id }}/nulstil" class="flex flex-wrap gap-4 items-center">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="confirm" value="reset">
+    <button type="submit" class="bg-red-700 hover:bg-red-800 text-white rounded-lg px-5 py-3">Ja, luk alle brugerens låger</button>
+    <a href="/admin/jul2026/indstillinger" class="text-blue-700 underline">Annuller</a>
+  </form>
+</section>
+{% endblock %}

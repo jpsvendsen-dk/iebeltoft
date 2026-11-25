@@ -105,9 +105,10 @@
     try { const days = JSON.parse(localStorage.getItem(key) || '[]'); return Array.isArray(days) ? days.filter(n => Number.isInteger(n) && n >= 1 && n <= 24) : []; }
     catch (_) { return []; }
   };
-  const profileKey = (id) => `jul2026-account-${id}`;
+  const version = person => person?.progress_version || 0;
+  const profileKey = (id, revision = 0) => `jul2026-account-${id}${revision ? `-v${revision}` : ''}`;
   function rememberOpened() {
-    try { localStorage.setItem(account ? profileKey(account.id) : openedKey, JSON.stringify([...opened])); return true; } catch (_) { return false; }
+    try { localStorage.setItem(account ? profileKey(account.id, version(account)) : openedKey, JSON.stringify([...opened])); return true; } catch (_) { return false; }
   }
   function accountDisplay(message = '') {
     $('account-open').hidden = preview; $('account-status').hidden = preview;
@@ -125,10 +126,11 @@
       do {
         syncAgain = false;
         const id = account.id;
-        const response = await fetch('/Jul2026/api/account/opened', {method:'POST', headers:{'Content-Type':'application/json','X-Calendar-Request':'1'}, body:JSON.stringify({account_id:id,days:[...opened].filter(day => day <= state.available || account.opened.includes(day))})});
+        const revision = version(account);
+        const response = await fetch('/Jul2026/api/account/opened', {method:'POST', headers:{'Content-Type':'application/json','X-Calendar-Request':'1'}, body:JSON.stringify({account_id:id,progress_version:revision,days:[...opened].filter(day => day <= state.available || account.opened.includes(day))})});
         if (!response.ok) throw Error(response.status === 401 ? 'Dit login er udløbet. Log ind igen for at synkronisere dine låger.' : response.status === 409 ? 'En anden kalender er logget ind i denne browser. Opdatér siden.' : 'Dine låger venter på at blive gemt på profilen. Vi prøver igen automatisk.');
         const result = await response.json();
-        if (!account || account.id !== id) return;
+        if (!account || account.id !== id || version(account) !== revision) return;
         for (const day of result.opened) opened.add(day);
         rememberOpened(); accountDisplay();
         if (!busy) render();
@@ -262,10 +264,14 @@
         const response = await fetch('/Jul2026/api/account', {cache:'no-store'}); if (!response.ok) throw Error();
         const nextAccount = (await response.json()).account;
         if (nextAccount) {
-          const cached = storageDays(profileKey(nextAccount.id));
-          const previous = account && account.id === nextAccount.id ? [...opened] : [];
+          const sameProgress = account && account.id === nextAccount.id && version(account) === version(nextAccount);
+          const cached = storageDays(profileKey(nextAccount.id, version(nextAccount)));
+          const previous = sameProgress ? [...opened] : [];
+          if (account && account.id === nextAccount.id && !sameProgress) {
+            stopCreak(); disposeVideo(); $('surprise').close();
+          }
           let guest = [];
-          try { if (sessionStorage.getItem('jul2026-merge-guest') === 'yes') guest = storageDays('jul2026-opened'); } catch (_) {}
+          try { if (!version(nextAccount) && sessionStorage.getItem('jul2026-merge-guest') === 'yes') guest = storageDays('jul2026-opened'); } catch (_) {}
           opened = new Set([...nextAccount.opened, ...cached, ...previous, ...guest].filter(day => Number.isInteger(day) && day >= 1 && day <= 24 && (day <= nextState.available || nextAccount.opened.includes(day))));
           account = nextAccount;
           const cachedSafely = rememberOpened();
@@ -290,15 +296,16 @@
     prepareAudio(); busy = true; el.disabled = true;
     let refreshAccess = false;
     const clickAccountId = account ? account.id : null;
+    const clickVersion = version(account);
     try {
-      const options = {method:'POST', cache:'no-store', headers:{'Content-Type':'application/json','X-Calendar-Request':'1'}, body:JSON.stringify({event_id:crypto.randomUUID(), account_id:clickAccountId})};
+      const options = {method:'POST', cache:'no-store', headers:{'Content-Type':'application/json','X-Calendar-Request':'1'}, body:JSON.stringify({event_id:crypto.randomUUID(), account_id:clickAccountId, progress_version:clickVersion})};
       let r;
       // Reuse this click's ID if the response is lost; the server logs it once.
       try { r = await fetch(`${api}/doors/${day}/open`, options); }
       catch (_) { r = await fetch(`${api}/doors/${day}/open`, options); }
       const data = await r.json();
       if (!r.ok) { refreshAccess = [401,403,409].includes(r.status); throw Error(typeof data.detail === 'string' ? data.detail : 'Lågen kunne ikke åbnes. Prøv igen.'); }
-      if ((account ? account.id : null) !== clickAccountId) throw Error('Dit login er ændret. Opdatér kalenderen, og prøv igen.');
+      if ((account ? account.id : null) !== clickAccountId || version(account) !== clickVersion) throw Error('Din kalender er ændret. Opdatér kalenderen, og prøv igen.');
       const back = el.querySelector('.door-back'); back.classList.add('has-art'); back.innerHTML = photo(day);
       const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       await creak();
