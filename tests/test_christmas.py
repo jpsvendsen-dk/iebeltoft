@@ -39,6 +39,9 @@ class ChristmasTests(unittest.TestCase):
                     if day > available:
                         self.assertNotIn("youtube", response.json())
                         self.assertNotIn("title", response.json())
+                        self.assertNotIn("reflection", response.json())
+                    else:
+                        self.assertEqual(response.json()["reflection"], christmas.REFLECTIONS[day - 1])
 
     def test_public_cannot_enable_preview(self):
         with patch.object(christmas, "today", return_value=date(2026, 11, 24)):
@@ -53,7 +56,9 @@ class ChristmasTests(unittest.TestCase):
         with patch.object(christmas, "today", return_value=date(2026, 11, 24)):
             self.assertEqual(self.client.get("/admin/jul2026/api/state").json()["available"], 24)
             for day in range(1, 25):
-                self.assertEqual(self.client.get(f"/admin/jul2026/api/doors/{day}").status_code, 200)
+                response = self.client.get(f"/admin/jul2026/api/doors/{day}")
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json()["reflection"], christmas.REFLECTIONS[day - 1])
         data = self.client.get("/admin/jul2026/api/doors/24").json()
         self.assertEqual(data["artist"], "Mariah Carey")
         for day in (0, 25, -1):
@@ -65,6 +70,10 @@ class ChristmasTests(unittest.TestCase):
         self.assertNotIn("aAkMkVFwAoo", response.text)
         self.assertEqual(len(christmas.SONGS), 24)
         self.assertEqual(len(christmas.ANIMALS), 24)
+        self.assertEqual(len(christmas.REFLECTIONS), 24)
+        self.assertEqual(len(set(christmas.REFLECTIONS)), 24)
+        for reflection in christmas.REFLECTIONS:
+            self.assertNotIn(reflection, response.text)
 
 
 if __name__ == "__main__":

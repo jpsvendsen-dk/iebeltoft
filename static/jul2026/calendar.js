@@ -316,7 +316,7 @@
       if (bounds.width > 0 && bounds.height > 0) $('surprise-media').style.setProperty('--photo-aspect', `${bounds.width} / ${bounds.height}`);
       $('day-label').textContent = `${day}. DECEMBER · 2026`;
       $('surprise-title').textContent = day === 24 ? 'Rigtig glædelig jul' : 'Et lille juleøjeblik';
-      $('animal-caption').textContent = `${data.animal}. ${day === 24 ? 'Her er julens største hit til din juleaften.' : 'En stille stund og en sang, der varmer.'}`;
+      $('door-reflection').textContent = data.reflection || '';
       $('song-title').textContent = data.title; $('song-artist').textContent = data.artist; $('youtube').href = data.youtube;
       disposeVideo();
       const videoId = new URL(data.youtube).searchParams.get('v');

@@ -45,6 +45,34 @@ SONGS = [
 ANIMALS = ["En ræv i den stille vinterskov", "En rødhals på en snedækket gren", "Et rådyr mellem grantræerne", "En hare i den bløde sne", "Et egern med en grankogle", "En ugle i vinterens skumring", "Et pindsvin ved en lille lanterne", "En grævling på en sneklædt sti", "En odder ved den frosne å", "En mus ved en rød svamp", "En kat i en sneklædt have", "En hund i den første sne", "En hest i vinterlandskabet", "Et får ved en gammel lade", "En ged under sneklædte grene", "En ko foran den lune stald", "En gås ved en vinterdam", "En and på den frosne sø", "En svane i snevejret", "En fasan i vintergræsset", "En dompap mellem røde bær", "En spætte i vinterskoven", "Et rensdyr under stjernerne", "En isbjørneunge i julesneen"]
 
 
+REFLECTIONS = [
+    "Send i tankerne en varm julehilsen til et menneske, du holder af, og mærk, hvad det vækker i dig.",
+    "Lyt til sangen, og læg mærke til, hvilket decemberminde der dukker op, uden at lede efter et bestemt.",
+    "Lad musikken tage dig på en lille tur, mens du mærker føddernes kontakt med gulvet.",
+    "Tænk på et sted, hvor du kan være dig selv, og giv dig et øjeblik til at dvæle ved følelsen.",
+    "Læg mærke til en lille ting omkring dig, som gør dig glad, og lad den få din fulde opmærksomhed.",
+    "Mind dig selv om en kærlig gestus, du har modtaget, og læg mærke til, hvordan du husker den.",
+    "Lad dette øjeblik være godt nok, uden at du behøver gøre det til noget særligt.",
+    "Lad skuldrene synke lidt, og overvej, hvad du selv kan bidrage med af fred og venlighed i dag.",
+    "Lyt efter et sted i musikken, der giver dig lyst til at smile eller bevæge dig, og følg gerne lysten.",
+    "Mens du glæder dig til det, der kommer, så læg mærke til én god ting, der allerede er her.",
+    "Forestil dig stille snefnug, der daler, og lad tankerne komme og gå i deres eget tempo.",
+    "Giv plads til den december, du faktisk oplever, med både glæde, travlhed og alt det midt imellem.",
+    "Lad tankerne finde hen til et menneske eller et sted, der giver dig en følelse af at høre til.",
+    "Tænk på noget værdifuldt i dit liv, som aldrig har kunnet pakkes ind.",
+    "Overvej, hvilken lille del af julens varme du kunne have lyst til at tage med ind i en almindelig hverdag.",
+    "Mærk efter, hvad der betyder noget for dig i julen, når indkøbslisterne og forventningerne får lov at ligge lidt.",
+    "Giv dig selv lov til ikke at kende alle svarene, og vend et øjeblik tilbage til musikken.",
+    "Lad tankerne nå et menneske, der kunne bruge lidt omsorg, og overvej en lille, venlig handling.",
+    "Se dig omkring med nysgerrighed, og opdag en farve, et lys eller en detalje, du ellers ville være gået forbi.",
+    "Giv kroppen lov til at følge rytmen, også selvom det bare bliver til en vippende tå.",
+    "Læg mærke til, hvordan et venligt blik eller et lille smil kan skabe kontakt mellem mennesker.",
+    "Slip tanken om, hvordan julen burde se ud, og giv plads til det skæve, fjollede og uperfekte.",
+    "Hvis sangen vækker savn eller gamle minder, så mød dem med samme venlighed, som du ville vise en god ven.",
+    "Lad sangen minde dig om, hvem der betyder noget for dig, og giv også dig selv en kærlig tanke.",
+]
+
+
 def is_preview(request):
     preview = request.url.path.startswith("/admin/")
     if preview and request.session.get("admin") is not True:
@@ -72,7 +100,7 @@ def state(request: Request, db: Session = Depends(get_db)):
 
 def door_content(day):
     title, artist, video = SONGS[day - 1]
-    return {"day": day, "title": title, "artist": artist, "youtube": f"https://www.youtube.com/watch?v={video}", "animal": ANIMALS[day - 1]}
+    return {"day": day, "title": title, "artist": artist, "youtube": f"https://www.youtube.com/watch?v={video}", "animal": ANIMALS[day - 1], "reflection": REFLECTIONS[day - 1]}
 
 
 def locked_door(day):

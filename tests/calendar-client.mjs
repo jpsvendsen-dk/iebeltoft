@@ -69,7 +69,7 @@ export async function runTests() {
           if(!allowed){ok=false;status=403;result={detail:'Lågen er låst.'};}
           else{
             if(current)current.opened=[...new Set([...current.opened,day])].sort((a,b)=>a-b);
-            result={title:'Song',artist:'Artist',youtube:'https://www.youtube.com/watch?v=testVideo'+String(day).padStart(2,'0'),animal:'Fox'};
+            result={title:'Song',artist:'Artist',youtube:'https://www.youtube.com/watch?v=testVideo'+String(day).padStart(2,'0'),animal:'Fox',reflection:`Reflection for day ${day}`};
             if(dropNextOpen){dropNextOpen=false;throw Error('Response lost');}
           }
         }
@@ -128,6 +128,7 @@ export async function runTests() {
   const preview=harness({path:'/admin/jul2026'});preview.door(24).listeners.click();preview.drain();assert.deepEqual(JSON.parse(preview.storage.get('jul2026-preview-opened')),[24]);assert(!preview.calls.some(c=>c.url.includes('/account')));assert(preview.get('account-open').hidden);
 
   const media=harness();media.door(2).listeners.click();media.drain();
+  assert.equal(media.get('door-reflection').textContent,'Reflection for day 2');
   assert.equal(media.get('animal-art').hidden,false);
   assert.equal(media.get('play-inline').disabled,true); // Wait for a ready player, not an autoplay iframe.
   const frame=media.get('video-container').children[0];
@@ -138,6 +139,7 @@ export async function runTests() {
   media.readyVideo();assert.equal(media.get('play-inline').disabled,false);
   media.get('play-inline').listeners.click();
   assert.equal(media.players[0].plays,1); // Synchronous: no await/network between tap and playVideo.
+  assert.equal(media.get('door-reflection').textContent,'Reflection for day 2');
   assert.equal(media.get('video-container').children[0],frame);
   assert.equal(media.get('animal-art').hidden,true);
   assert.equal(media.get('play-inline').attrs['aria-pressed'],'true');
@@ -150,6 +152,7 @@ export async function runTests() {
   assert(media.players[0].destroyed);
   media.players[0].events.onReady({target:media.players[0]}); // A late callback must not revive a closed popup.
   media.door(3).listeners.click();media.drain();
+  assert.equal(media.get('door-reflection').textContent,'Reflection for day 3');
   assert.equal(media.get('animal-art').hidden,false);assert.equal(media.players[1].plays,0);
   media.readyVideo();
   media.get('play-inline').listeners.click();assert(media.get('video-container').children[0].src.includes('/testVideo03?'));
