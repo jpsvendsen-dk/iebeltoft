@@ -14,8 +14,7 @@ router = APIRouter()
 VERSION = "jul2026-2"
 
 # Official Charts' top 24 most-streamed Christmas songs in the UK, reversed.
-# Doors 2, 4 and 11 replaced with Danish songs at the owner's request.
-# Rank 9 is listed under Elton John's Christmas EP: Step Into Christmas.
+# Doors 2, 4, 11, 16 and 22 replaced with Danish songs at the owner's request.
 SONGS = [
     ("Feliz Navidad", "José Feliciano", "N8NcQzMQN_U"),
     ("Der' noget i december", "Rasmus Seebach", "Mv6FViYatkU"),
@@ -32,13 +31,13 @@ SONGS = [
     ("Driving Home for Christmas", "Chris Rea", "DDt3u2Ev1cI"),
     ("Underneath the Tree", "Kelly Clarkson", "YfF10ow4YEo"),
     ("I Wish It Could Be Christmas Everyday", "Wizzard", "IJPc7esgvsA"),
-    ("Step Into Christmas", "Elton John", "IbRtGMm96F8"),
+    ("Jul Det' Cool", "MC Einar", "FuyKWtF5aqU"),
     ("Santa Tell Me", "Ariana Grande", "nlR0MkrRklg"),
     ("Do They Know It's Christmas?", "Band Aid", "RH-xd5bPKTA"),
     ("It's Beginning to Look a Lot Like Christmas", "Michael Bublé", "QJ5DOWPGxwg"),
     ("Rockin' Around the Christmas Tree", "Brenda Lee", "TFsZy9t-qDc"),
     ("Merry Christmas Everyone", "Shakin' Stevens", "N-PyWfVkjZc"),
-    ("Fairytale of New York", "The Pogues feat. Kirsty MacColl", "j9jbdgZidu8"),
+    ("Jul i Angora", "Drengene Fra Angora", "SFpiOoWFNNg"),
     ("Last Christmas", "Wham!", "E8gmARGvPlI"),
     ("All I Want for Christmas Is You", "Mariah Carey", "aAkMkVFwAoo"),
 ]
