@@ -17,6 +17,18 @@ templates = Jinja2Templates(directory="app/templates")
 PAGE_SIZE = 50
 
 
+def history_scope(model, person_id):
+    condition = model.year == YEAR
+    return condition & (model.visitor_id == person_id) if person_id is not None else condition
+
+
+def history_person(db, person_id):
+    person = db.get(CalendarVisitor, person_id) if person_id is not None else None
+    if person_id is not None and person is None:
+        raise HTTPException(404, "Brugeren findes ikke.")
+    return person
+
+
 def csrf_token(request):
     if "calendar_csrf" not in request.session:
         request.session["calendar_csrf"] = secrets.token_urlsafe(32)
@@ -115,4 +127,26 @@ def history(request: Request, email: str = Query(default="", max_length=254), da
     for event, address in rows:
         timestamp = event.logged_at if kind == "login" else event.clicked_at
         events.append({"email": address, "day": None if kind == "login" else event.day, "time": timestamp.replace(tzinfo=timezone.utc).astimezone(TZ).strftime("%d.%m.%Y kl. %H:%M:%S %Z"), "iso": timestamp.replace(tzinfo=timezone.utc).isoformat(), "result": "Logget ind" if kind == "login" else labels[event.result], "ip": event.ip_address, "device": event.device_type, "user_agent": event.user_agent})
-    return templates.TemplateResponse(request, "admin/christmas_history.html", {"request": request, "aktiv_side": "christmas_history", "events": events, "email": email, "day": day, "kind": kind, "page": page, "total": total, "has_next": page * PAGE_SIZE < total}, headers={"Cache-Control": "no-store"})
+    return templates.TemplateResponse(request, "admin/christmas_history.html", {"request": request, "aktiv_side": "christmas_history", "events": events, "email": email, "day": day, "kind": kind, "page": page, "total": total, "has_next": page * PAGE_SIZE < total, "deleted": request.query_params.get("deleted") == "yes"}, headers={"Cache-Control": "no-store"})
+
+
+@router.get("/historik/slet")
+def delete_history_confirmation(request: Request, person_id: int | None = Query(default=None, ge=1), db: Session = Depends(get_db)):
+    redirect = kræv_login(request)
+    if redirect:
+        return redirect
+    person = history_person(db, person_id)
+    counts = {name: db.scalar(select(func.count()).select_from(model).where(history_scope(model, person_id))) for name, model in (("login", CalendarLoginEvent), ("doors", CalendarDoorEvent))}
+    return templates.TemplateResponse(request, "admin/christmas_delete_history.html", {"request": request, "aktiv_side": "christmas_history", "person": person, "counts": counts, "csrf": csrf_token(request)}, headers={"Cache-Control": "no-store"})
+
+
+@router.post("/historik/slet")
+def delete_history(request: Request, csrf: str = Form(...), confirm: str = Form(...), person_id: int | None = Query(default=None, ge=1), db: Session = Depends(get_db)):
+    verify_admin_form(request, csrf)
+    if confirm != "delete-history":
+        raise HTTPException(400, "Bekræft sletningen på historikkens sletteside.")
+    history_person(db, person_id)
+    for model in (CalendarDoorEvent, CalendarLoginEvent):
+        db.execute(delete(model).where(history_scope(model, person_id)))
+    db.commit()
+    return RedirectResponse("/admin/jul2026/historik?deleted=yes", status_code=303)

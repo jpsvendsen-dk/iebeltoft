@@ -1,0 +1,16 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Slet historik{% endblock %}
+{% block content %}
+<section class="bg-white rounded-xl shadow-sm p-6 max-w-2xl">
+  <h1 class="text-2xl font-bold text-gray-800 mb-4">{{ 'Slet brugerens historik' if person else 'Slet al historik' }}</h1>
+  <p class="mb-4 break-all">Du er ved at slette historikken for <strong>{{ person.email if person else 'ALLE brugere' }}</strong> i julekalenderen for 2026.</p>
+  <p class="mb-4">Det omfatter {{ counts.login }} login og {{ counts.doors }} lågetryk samt de tilhørende tidspunkter, IP-adresser og enhedsoplysninger. De berørte tællere bliver nulstillet.</p>
+  <p class="mb-4">Profiler, aktive login, adgang og åbnede låger bevares. Nye login og lågetryk registreres fortsat.</p>
+  <p class="mb-6 font-semibold text-red-800">Sletningen kan ikke fortrydes.</p>
+  <form method="post" action="/admin/jul2026/historik/slet{% if person %}?person_id={{ person.id }}{% endif %}" class="flex flex-wrap gap-4 items-center">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="confirm" value="delete-history">
+    <button type="submit" class="bg-red-700 hover:bg-red-800 text-white rounded-lg px-5 py-3">{{ 'Ja, slet brugerens historik' if person else 'Ja, slet al historik for alle brugere' }}</button>
+    <a href="/admin/jul2026/indstillinger" class="text-blue-700 underline">Annuller</a>
+  </form>
+</section>
+{% endblock %}

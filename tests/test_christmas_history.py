@@ -177,6 +177,61 @@ class CalendarHistoryTests(unittest.TestCase):
         self.assertEqual(self.click(1, person, event_id="invalid").status_code, 422)
         self.assertEqual(self.events(), [])
 
+    def test_delete_history_per_user_then_all_preserves_accounts_and_progress(self):
+        first = self.login()
+        self.click(2, first)
+        self.now += timedelta(minutes=2)
+        second_client = self.device()
+        second = self.login('other@example.com', second_client)
+        self.click(3, second, second_client)
+        admin, csrf = self.admin()
+        self.access(admin, csrf, first, True)
+        path = f"/admin/jul2026/historik/slet?person_id={first['id']}"
+        confirmation = admin.get(path)
+        self.assertEqual(confirmation.status_code, 200)
+        self.assertEqual(confirmation.context['counts'], {'login': 1, 'doors': 1})
+        self.assertEqual(len(self.events()), 2)  # GET never deletes.
+        self.assertEqual(admin.post(path, data={'csrf': csrf, 'confirm': 'delete-history'}, follow_redirects=False).status_code, 303)
+        self.assertEqual([event.visitor_id for event in self.events()], [second['id']])
+        with self.Session() as db:
+            self.assertEqual([event.visitor_id for event in db.scalars(select(CalendarLoginEvent))], [second['id']])
+        profile = self.client.get('/Jul2026/api/account').json()['account']
+        self.assertEqual(profile['opened'], [2])
+        self.assertEqual(profile['progress_version'], 0)
+        self.assertTrue(profile['early_access'])
+        settings = admin.get('/admin/jul2026/indstillinger')
+        self.assertNotIn(first['id'], settings.context['door_counts'])
+        self.assertNotIn(first['id'], settings.context['login_counts'])
+        self.assertEqual(settings.context['door_counts'][second['id']], 1)
+        all_path = '/admin/jul2026/historik/slet'
+        self.assertIsNone(admin.get(all_path).context['person'])
+        self.assertEqual(admin.post(all_path, data={'csrf': csrf, 'confirm': 'delete-history'}, follow_redirects=False).status_code, 303)
+        self.assertEqual(self.events(), [])
+        with self.Session() as db:
+            self.assertEqual(db.scalars(select(CalendarLoginEvent)).all(), [])
+        self.assertEqual(second_client.get('/Jul2026/api/account').json()['account']['opened'], [3])
+        self.click(2, first)
+        self.assertEqual(self.events()[0].result, 'reopened')
+        self.now += timedelta(minutes=2)
+        self.login()
+        self.assertEqual(admin.get('/admin/jul2026/indstillinger').context['login_counts'][first['id']], 1)
+
+    def test_delete_history_requires_admin_csrf_confirmation_and_existing_user(self):
+        person = self.login()
+        self.click(1, person)
+        admin, csrf = self.admin()
+        for path in ('/admin/jul2026/historik/slet', f"/admin/jul2026/historik/slet?person_id={person['id']}"):
+            self.assertEqual(self.client.get(path, follow_redirects=False).status_code, 303)
+            self.assertEqual(self.client.post(path, data={'csrf': csrf, 'confirm': 'delete-history'}).status_code, 401)
+            self.assertEqual(admin.post(path, data={'csrf': 'wrong', 'confirm': 'delete-history'}).status_code, 403)
+            self.assertEqual(admin.post(path, data={'csrf': csrf, 'confirm': 'wrong'}).status_code, 400)
+            self.assertEqual(admin.post(path, data={'csrf': csrf}).status_code, 422)
+        missing = '/admin/jul2026/historik/slet?person_id=999999'
+        self.assertEqual(admin.get(missing).status_code, 404)
+        self.assertEqual(admin.post(missing, data={'csrf': csrf, 'confirm': 'delete-history'}).status_code, 404)
+        self.assertEqual(admin.get('/admin/jul2026/historik/slet?person_id=0').status_code, 422)
+        self.assertEqual(len(self.events()), 1)
+
     def test_reset_preserves_history_access_and_invalidates_old_devices(self):
         person = self.login()
         admin, csrf = self.admin()
