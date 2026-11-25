@@ -1,8 +1,9 @@
-import {SnakeGame, SIZE} from './snake-core.js?v=1';
+import {SnakeGame} from './snake-core.js?v=1';
+import {SnakeRenderer} from './snake-renderer.js?v=2';
 
 (() => {
   const $ = id => document.getElementById(id), dialog = $('snake-dialog'), canvas = $('snake-board');
-  const ctx = canvas.getContext('2d'), api = '/Jul2026/api/snake';
+  const renderer = new SnakeRenderer(canvas), preview = new SnakeGame(2026), api = '/Jul2026/api/snake';
   let game = null, round = null, turns = [], nextDirection = null, timer;
   let phase = 'idle', profile = null, loaded = false, loading = false, saving = false, pending = false, failedSave = false;
   let loadGeneration = 0, guestBest = 0;
@@ -31,35 +32,7 @@ import {SnakeGame, SIZE} from './snake-core.js?v=1';
     $('snake-login').hidden = Boolean(profile);
     $('snake-profile-note').textContent = profile ? 'Din rekord gemmes på kalenderprofilen på tværs af enheder.' : 'Gæstespil · Rekorden gemmes kun i denne browser. Log ind for at gemme på din profil.';
   }
-  function draw() {
-    const cell=canvas.width/SIZE, scene=game||new SnakeGame(2026);
-    ctx.fillStyle='#102e2b';ctx.fillRect(0,0,canvas.width,canvas.height);
-    for(let y=0;y<SIZE;y++)for(let x=0;x<SIZE;x++){
-      ctx.fillStyle=(x+y)%2?'#143932':'#173d36';ctx.fillRect(x*cell,y*cell,cell,cell);
-      if((x*7+y*11)%19===0){ctx.fillStyle='#e5eee33d';ctx.beginPath();ctx.arc(x*cell+cell*.25,y*cell+cell*.25,1.6,0,Math.PI*2);ctx.fill();}
-    }
-    if(scene.food){
-      const [x,y]=scene.food,px=x*cell,py=y*cell;
-      ctx.fillStyle='#d64e4e';ctx.fillRect(px+3,py+3,cell-6,cell-6);
-      ctx.fillStyle='#f5d78f';ctx.fillRect(px+cell*.44,py+2,cell*.12,cell-4);ctx.fillRect(px+2,py+cell*.43,cell-4,cell*.12);
-      ctx.strokeStyle='#f5d78f';ctx.lineWidth=2;ctx.beginPath();ctx.arc(px+cell*.38,py+3,3,0,Math.PI*2);ctx.arc(px+cell*.62,py+3,3,0,Math.PI*2);ctx.stroke();
-    }
-    scene.body.slice().reverse().forEach(([x,y],i)=>{
-      ctx.fillStyle=i===scene.body.length-1?'#d5e8b0':i%2?'#74a36a':'#8eb77d';
-      ctx.fillRect(x*cell+2,y*cell+2,cell-4,cell-4);
-    });
-    const [hx,hy]=scene.body[0],cx=hx*cell+cell/2,cy=hy*cell+cell/2;
-    ctx.save();ctx.translate(cx,cy);ctx.rotate(scene.direction*Math.PI/2);
-    ctx.fillStyle='#173d36';ctx.beginPath();ctx.arc(4,-4,2,0,Math.PI*2);ctx.arc(4,4,2,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#d64e4e';ctx.beginPath();ctx.moveTo(-cell*.4,-cell*.37);ctx.lineTo(-cell*.4,cell*.37);ctx.lineTo(-cell*.85,cell*.1);ctx.fill();
-    ctx.fillStyle='#fff4dc';ctx.fillRect(-cell*.43,-cell*.4,4,cell*.8);ctx.beginPath();ctx.arc(-cell*.85,cell*.1,3,0,Math.PI*2);ctx.fill();ctx.restore();
-    if(phase==='paused' || phase==='over'){
-      ctx.fillStyle='#08231ecc';ctx.fillRect(0,0,canvas.width,canvas.height);
-      ctx.fillStyle='#fff0d3';ctx.textAlign='center';ctx.font='bold 27px system-ui';
-      ctx.fillText(phase==='paused'?'En lille julepause':game.won?'Alle gaver samlet!':'Tak for spillet!',canvas.width/2,canvas.height/2);
-      if(phase==='over'){ctx.font='20px system-ui';ctx.fillText(`${game.score} point`,canvas.width/2,canvas.height/2+36);}
-    }
-  }
+  function draw() { renderer.update(game || preview, phase); }
   async function leaderboard() {
     const list=$('snake-toplist');
     try {
