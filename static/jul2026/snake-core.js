@@ -1,6 +1,11 @@
 // These deterministic rules are mirrored by app/services/christmas_snake.py.
 export const SIZE = 20, MAX_TICKS = 20000;
 const vectors = [[1,0],[0,1],[-1,0],[0,-1]];
+// Same closed respawn route as the server; every body length fits safely.
+const respawnPath=[[0,0]];
+for(let y=0;y<SIZE;y++)for(let i=1;i<SIZE;i++)respawnPath.push([y%2===0?i:SIZE-i,y]);
+for(let y=SIZE-1;y>0;y--)respawnPath.push([0,y]);
+const respawnHead=respawnPath.findIndex(([x,y])=>x===10&&y===10);
 export class SnakeGame {
   constructor(seed, version = 1) {
     this.version = version; this.lives = version >= 2 ? 2 : 1;
@@ -44,7 +49,8 @@ export class SnakeGame {
     if (this.tick === MAX_TICKS) this.over = true;
   }
   respawn() {
-    this.body=[[10,10],[9,10],[8,10]];this.direction=0;this.lifeLost=false;
+    this.body=this.version>=3?Array.from({length:this.body.length},(_,i)=>[...respawnPath[(respawnHead-i+respawnPath.length)%respawnPath.length]]):[[10,10],[9,10],[8,10]];
+    this.direction=0;this.lifeLost=false;
     if (this.food && this.body.some(p=>p[0]===this.food[0] && p[1]===this.food[1])) this.food=this.spawn();
   }
 }

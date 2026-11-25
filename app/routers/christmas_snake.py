@@ -26,7 +26,7 @@ class Identity(BaseModel):
 
 
 class Start(Identity):
-    rules_version: StrictInt = Field(default=1, ge=1, le=2)
+    rules_version: StrictInt = Field(default=1, ge=1, le=3)
 
 
 class Click(BaseModel):

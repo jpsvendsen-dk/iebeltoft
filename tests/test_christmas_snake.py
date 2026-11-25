@@ -16,6 +16,36 @@ ROOT = '/Jul2026/api/snake'
 
 
 class SnakeRulesTests(unittest.TestCase):
+    def test_respawn_preserves_length_points_and_has_a_free_next_cell(self):
+        for length in range(3,400):
+            game=Game(1,3)
+            game.body=[(x,y) for y in range(20) for x in range(20)][:length]
+            game.score=(length-3)*10
+            game.lives=1;game.bonus_life=True;game.life_lost=True
+            game.food=(10,10)
+            game.respawn()
+            self.assertEqual(len(game.body),length)
+            self.assertEqual(len(set(game.body)),length)
+            self.assertEqual(game.score,(length-3)*10)
+            self.assertEqual((game.lives,game.bonus_life),(1,True))
+            self.assertNotIn((11,10),game.body)
+            self.assertNotIn(game.food,game.body)
+            for a,b in zip(game.body,game.body[1:]):
+                self.assertEqual(abs(a[0]-b[0])+abs(a[1]-b[1]),1)
+            game.step()
+            self.assertFalse(game.life_lost)
+            self.assertEqual(game.lives,1)
+
+    def test_new_length_preserving_round_replays_identically(self):
+        game=Game(1,3)
+        for tick in range(1,14):game.step(3 if tick==3 else None)
+        self.assertEqual((len(game.body),game.score,game.lives),(4,10,1))
+        game.respawn()
+        self.assertEqual(game.body,[(10,10),(9,10),(8,10),(7,10)])
+        for _ in range(10):game.step()
+        verified=replay(1,23,[SimpleNamespace(tick=3,direction=3)],3)
+        self.assertEqual((len(verified.body),verified.score,verified.lives),(len(game.body),10,0))
+
     def test_round_migration_preserves_legacy_rules(self):
         source=ast.parse(Path('app/main.py').read_text(encoding='utf-8'))
         migrations=next(ast.literal_eval(n.value) for n in source.body if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='_MIGRATIONS' for t in n.targets))
@@ -205,6 +235,11 @@ class SnakeApiTests(unittest.TestCase):
         self.assertEqual(old['rules_version'],1)
         self.now+=timedelta(seconds=3)
         self.assertEqual(self.finish(person,old).status_code,200)
+        response=self.client.post(ROOT+'/rounds',headers=HEADERS,json={'account_id':person['id'],'rules_version':3})
+        self.assertEqual(response.status_code,200)
+        new=response.json();self.assertEqual(new['rules_version'],3)
+        self.now+=timedelta(seconds=4)
+        self.assertEqual(self.finish(person,new,ticks=23).status_code,200)
 
     def test_click_logs_server_metadata_guest_and_idempotency(self):
         body={'event_id':str(uuid4()),'action':'open'}

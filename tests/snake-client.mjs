@@ -23,6 +23,18 @@ export async function runSnakeTests() {
   const bonus=new Game(1,2);bonus.score=490;bonus.food=[11,10];bonus.step();assert.equal(bonus.lives,2);
   bonus.food=[12,10];bonus.step();assert.equal(bonus.score,510);assert.equal(bonus.lives,3);
   bonus.food=[13,10];bonus.step();assert.equal(bonus.lives,3);
+  const kept=new Game(1,3);
+  for(let tick=1;tick<=13;tick++)kept.step(tick===3?3:null);
+  assert.equal(kept.body.length,4);kept.respawn();
+  assert.deepEqual(Array.from(kept.body,p=>Array.from(p)),[[10,10],[9,10],[8,10],[7,10]]);
+  assert.equal(kept.score,10);assert.equal(kept.lives,1);
+  for(let length=3;length<400;length++){
+    const model=new Game(1,3);model.body=Array.from({length},(_,i)=>[i%20,Math.floor(i/20)]);model.food=[10,10];model.respawn();
+    assert.equal(model.body.length,length);assert.equal(new Set(model.body.map(p=>p.join(','))).size,length);
+    assert(!model.body.some(([x,y])=>x===11&&y===10));
+    assert(!model.body.some(([x,y])=>x===model.food[0]&&y===model.food[1]));
+    for(let i=1;i<length;i++)assert.equal(Math.abs(model.body[i][0]-model.body[i-1][0])+Math.abs(model.body[i][1]-model.body[i-1][1]),1);
+  }
 
   function harness(initialProfile=null) {
     const nodes=new Map(),storage=new Map(),calls=[],docEvents={},winEvents={},timers=new Map(),frames=new Map(),headings=[];
@@ -60,11 +72,11 @@ export async function runSnakeTests() {
         else if(url.endsWith('/profile') && !options.method){if(profileFails)throw Error('Offline');data={profile:profile?{...profile}:null};}
         else if(url.endsWith('/profile')){const body=JSON.parse(options.body);assert.equal(body.account_id,profile.account_id);profile={...profile,...body};data={profile:{...profile}};}
         else if(url.endsWith('/leaderboard'))data={players:profile?.is_public?[{rank:1,name:profile.display_name,score:profile.best_score}]:[]};
-        else if(url.endsWith('/rounds')){assert.equal(JSON.parse(options.body).account_id,profile.account_id);assert.equal(JSON.parse(options.body).rules_version,2);data={seed:1,round_id:'test-round',max_ticks:20000,rules_version:2};}
+        else if(url.endsWith('/rounds')){assert.equal(JSON.parse(options.body).account_id,profile.account_id);assert.equal(JSON.parse(options.body).rules_version,3);data={seed:1,round_id:'test-round',max_ticks:20000,rules_version:3};}
         else if(url.endsWith('/finish')){
           const body=JSON.parse(options.body);assert.equal(body.account_id,profile.account_id);assert.equal(body.score,undefined);
           if(failSave){status=503;data={detail:'Offline'};}
-          else{const verified=new Game(1,2),changes=new Map(body.turns.map(t=>[t.tick,t.direction]));for(let t=1;t<=body.ticks;t++)verified.step(changes.get(t)??null);assert(verified.over);profile.best_score=Math.max(profile.best_score,verified.score);data={score:verified.score,profile:{...profile}};}
+          else{const verified=new Game(1,3),changes=new Map(body.turns.map(t=>[t.tick,t.direction]));for(let t=1;t<=body.ticks;t++)verified.step(changes.get(t)??null);assert(verified.over);profile.best_score=Math.max(profile.best_score,verified.score);data={score:verified.score,profile:{...profile}};}
         } else throw Error(url);
         return {ok:status===200,status,json:()=>data};
       },

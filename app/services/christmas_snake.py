@@ -2,6 +2,10 @@
 SIZE = 20
 MAX_TICKS = 20000
 VECTORS = ((1, 0), (0, 1), (-1, 0), (0, -1))
+# A closed route through every cell, with the next cell right of the centre.
+# Walking backwards along it fits any snake length without crossing itself.
+RESPAWN_PATH = [(0, 0)] + [(x, y) for y in range(SIZE) for x in (range(1, SIZE) if y % 2 == 0 else range(SIZE - 1, 0, -1))] + [(0, y) for y in range(SIZE - 1, 0, -1)]
+RESPAWN_HEAD = RESPAWN_PATH.index((10, 10))
 
 
 class Game:
@@ -70,7 +74,11 @@ class Game:
             self.over = True
 
     def respawn(self):
-        self.body = [(10, 10), (9, 10), (8, 10)]
+        if self.version >= 3:
+            length = len(self.body)
+            self.body = [RESPAWN_PATH[(RESPAWN_HEAD - i) % len(RESPAWN_PATH)] for i in range(length)]
+        else:
+            self.body = [(10, 10), (9, 10), (8, 10)]
         self.direction = 0
         self.life_lost = False
         if self.food in self.body:

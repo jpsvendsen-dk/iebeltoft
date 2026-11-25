@@ -1,10 +1,10 @@
-import {SnakeGame} from './snake-core.js?v=2';
+import {SnakeGame} from './snake-core.js?v=3';
 import {SnakeRenderer} from './snake-renderer.js?v=5';
 import {SnakeAudio} from './snake-audio.js?v=2';
 
 (() => {
   const $ = id => document.getElementById(id), dialog = $('snake-dialog'), canvas = $('snake-board');
-  const renderer = new SnakeRenderer(canvas), preview = new SnakeGame(2026,2), api = '/Jul2026/api/snake';
+  const renderer = new SnakeRenderer(canvas), preview = new SnakeGame(2026,3), api = '/Jul2026/api/snake';
   const sounds = new SnakeAudio();
   let game = null, round = null, turns = [], directionQueue = [], timer;
   let phase = 'idle', profile = null, loaded = false, loading = false, saving = false, pending = false, failedSave = false;
@@ -97,7 +97,7 @@ import {SnakeAudio} from './snake-audio.js?v=2';
       if(game.score>before&&!game.over)sounds.play('gift');
       if(!hadBonus&&game.bonusLife)message('Ekstra liv! Du er kommet over 500 point.');
       if(game.over)finish();
-      else if(game.lifeLost){directionQueue=[];phase='life';sounds.play('life');message(`Du mistede et liv. ${game.lives} tilbage — dine ${game.score} point er bevaret.`);controls();draw();}
+      else if(game.lifeLost){directionQueue=[];phase='life';sounds.play('life');message(`Du mistede et liv. ${game.lives} tilbage — dine ${game.score} point og slangens længde er bevaret.`);controls();draw();}
       else schedule();
     },game.interval);
   }
@@ -110,9 +110,9 @@ import {SnakeAudio} from './snake-audio.js?v=2';
       const data=await request('/profile');
       profile=data.profile;
       let seed;
-      if(profile){const started=await request('/rounds',{account_id:profile.account_id,rules_version:2});round={...started,account_id:profile.account_id};seed=started.seed;}
+      if(profile){const started=await request('/rounds',{account_id:profile.account_id,rules_version:3});round={...started,account_id:profile.account_id};seed=started.seed;}
       else{round=null;const random=new Uint32Array(1);crypto.getRandomValues(random);seed=random[0]||1;}
-      game=new SnakeGame(seed,round?.rules_version??2);turns=[];directionQueue=[];phase=dialog.open&&!document.hidden?'running':'paused';
+      game=new SnakeGame(seed,round?.rules_version??3);turns=[];directionQueue=[];phase=dialog.open&&!document.hidden?'running':'paused';
       failedSave=false;message(phase==='running'?'God gavejagt!':'Spillet er på pause. Tryk Fortsæt.');
       if(phase==='running'){sounds.play('start');schedule();}
       if(phase==='running')canvas.focus({preventScroll:true});
