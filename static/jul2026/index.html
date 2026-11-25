@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#10282b">
+  <meta name="description" content="24 små juleøjeblikke fra et snedækket torv. Åbn en låge hver dag i december og find vinterens dyr og julens største sange.">
+  <title>Jul på torvet · Julekalender 2026 · iebeltoft.dk</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='85'%3E🎄%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/jul2026/calendar.css?v=6">
+  <script src="/static/jul2026/calendar.js?v=4" defer></script>
+</head>
+<body>
+  <div class="christmas-world">
+    <div class="snow" aria-hidden="true"></div>
+    <nav class="topbar" aria-label="Hovednavigation">
+      <a class="brand" href="/">iebeltoft<span>.dk</span></a>
+      <span class="nav-note">En lille juletradition</span>
+      <div class="nav-actions"><button id="account-open" class="quiet-button">Gem min kalender</button><button id="sound" class="quiet-button" aria-pressed="true" title="Slå lågernes knirkelyd til eller fra"><span aria-hidden="true">♫</span> <span id="sound-label">Lyd til</span></button></div>
+    </nav>
+    <main>
+      <header class="intro">
+        <p class="eyebrow">1.–24. DECEMBER · 2026</p>
+        <h1>Jul på torvet</h1>
+        <p class="subtitle">24 låger. Små overraskelser. En hel december med julehygge.</p>
+        <div class="ornament" aria-hidden="true"><span></span> ✧ <span></span></div>
+        <p id="calendar-status" class="calendar-status" role="status">Vi tænder lysene på torvet …</p>
+        <p id="account-status" class="account-status" role="status">Gem med din e-mail, og tag dine låger med på alle enheder.</p>
+        <p id="preview-note" class="preview-note" hidden>Administratorens prøvevisning · Alle låger kan åbnes</p>
+      </header>
+      <section class="calendar" aria-label="Julekalenderens 24 låger" aria-busy="true" id="calendar"></section>
+      <div class="calendar-bottom"><span class="tiny-star" aria-hidden="true">✦</span><p>Find dagens tal, og luk lidt jul ind.</p><p class="small-note">En ny låge åbner ved midnat, dansk tid.</p><span id="opened-count">0 af 24 juleøjeblikke åbnet</span></div>
+    </main>
+    <footer><span>Med julehilsner fra iebeltoft.dk</span><button class="footer-button" id="about-open">Om kalenderen</button><span>Inspireret af Silkeborg Torv</span></footer>
+  </div>
+  <div id="toast" role="status" class="toast" hidden></div>
+  <dialog id="account-dialog" aria-labelledby="account-title">
+    <button class="close" id="account-close" aria-label="Luk login">×</button>
+    <div class="about-copy">
+      <p class="eyebrow">DIN EGEN JULEKALENDER</p><h2 id="account-title">Tag julehyggen med</h2>
+      <div id="account-guest">
+        <p>Få et personligt loginlink på e-mail. Så husker vi dine halvåbne låger på mobil, tablet og computer. Du skal ikke vælge en adgangskode.</p>
+        <form id="login-form"><label for="login-email">Din e-mailadresse</label><input id="login-email" type="email" name="email" maxlength="254" autocomplete="email" placeholder="dig@eksempel.dk" required><button class="youtube" id="login-submit" type="submit">Send mit loginlink</button></form>
+        <p id="login-status" role="status"></p>
+        <p class="account-help">Linket gælder i 15 minutter. Når du bekræfter login, tages denne browsers allerede åbnede låger med. Vi bruger din e-mail til login, ikke til reklamer.</p>
+      </div>
+      <div id="account-signed-in" hidden><p id="account-email"></p><p>Dine låger gemmes på din profil. På en ny enhed bestiller du blot et nyt link med samme e-mailadresse. Denne enhed husker dit login i 90 dage.</p><p>Når du er logget ind, registrerer vi dato og klokkeslet for dine tryk på lågerne, også genåbninger og afviste forsøg. Kalenderens administrator kan se historikken.</p><button class="youtube" id="logout" type="button">Log ud på denne enhed</button></div>
+    </div>
+  </dialog>
+  <dialog id="surprise" aria-labelledby="surprise-title">
+    <button class="close" id="surprise-close" aria-label="Luk lågen">×</button>
+    <div class="animal-art" id="animal-art" role="img"></div>
+    <div class="surprise-copy"><p id="day-label" class="eyebrow"></p><h2 id="surprise-title"></h2><p id="animal-caption"></p><div class="song"><span class="music-note" aria-hidden="true">♫</span><div><p class="song-label">DAGENS JULESANG</p><h3 id="song-title"></h3><p id="song-artist"></p></div></div><a class="youtube" id="youtube" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">▶</span> Lyt på YouTube</a><p class="external-note">Åbner YouTube i en ny fane</p></div>
+  </dialog>
+  <dialog id="about" aria-labelledby="about-title"><button class="close" id="about-close" aria-label="Luk information">×</button><div class="about-copy"><p class="eyebrow">EN LILLE JULETRADITION</p><h2 id="about-title">Lidt magi, hver dag</h2><p>Fra den 1. til den 24. december 2026 kan du åbne en ny låge. Bag hver låge gemmer sig et dyr i sneen og en julesang. Tidligere dages låger kan altid åbnes igen.</p><p>Lågerne følger dansk tid. Uden login huskes dine åbnede låger i denne browser, når lokal lagring er tilladt. Med e-maillogin gemmes de på din profil og følger med mellem dine enheder. Login huskes i 90 dage på hver enhed, og du kan logge ud under Min kalender.</p><p>Musikken følger de 24 øverste på <a href="https://www.officialcharts.com/chart-news/official-most-streamed-christmas-songs/" target="_blank" rel="noopener noreferrer">Official Charts’ liste over de mest streamede julesange i Storbritannien</a>, i omvendt rækkefølge. Den mest populære gemmer sig til juleaften. Det er ikke en dansk eller en endelig 2026-hitliste.</p><p>Den fotorealistiske juleby er frit inspireret af Silkeborg Torv. Byen og de 24 vintermotiver er skabt med AI. Musikken afspilles hos YouTube.</p><button class="youtube" id="about-done">Tilbage til torvet</button></div></dialog>
+</body>
+</html>

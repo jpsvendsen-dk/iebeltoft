@@ -48,6 +48,12 @@
                           {% if aktiv_side == 'billeder' %}bg-blue-800{% endif %}">
                     Billeder
                 </a>
+                <a href="/admin/jul2026"
+                   class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-800 transition">
+                    Julekalender 2026
+                </a>
+                <a href="/admin/jul2026/indstillinger" class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-800 transition {% if aktiv_side == 'christmas_settings' %}bg-blue-800{% endif %}">Kalenderopsætning</a>
+                <a href="/admin/jul2026/historik" class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-800 transition {% if aktiv_side == 'christmas_history' %}bg-blue-800{% endif %}">Lågehistorik</a>
             </nav>
             <div class="px-3 py-4 border-t border-blue-800">
                 <a href="/admin/logout"

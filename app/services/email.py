@@ -5,6 +5,34 @@ import httpx
 logger = logging.getLogger(__name__)
 
 
+def send_calendar_login(email: str, login_url: str) -> bool:
+    """Send the requested one-time link; never log recipients or link tokens."""
+    from html import escape
+    api_key = os.getenv("RESEND_API_KEY", "")
+    if not api_key:
+        return False
+    text = f"Log ind på Jul på torvet:\n\n{login_url}\n\nLinket gælder i 15 minutter og kan kun bruges én gang.\nPå en ny enhed kan du bestille et nyt link med samme e-mailadresse.\nHvis du ikke har bedt om linket, kan du ignorere denne mail."
+    try:
+        response = httpx.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={
+                "from": os.getenv("CHRISTMAS_MAIL_FROM", "Jul på torvet <noreply@iebeltoft.dk>"),
+                "to": [email],
+                "subject": "Dit loginlink til Jul på torvet",
+                "text": text,
+                "html": f'<div style="font-family:Georgia,serif;max-width:520px;margin:auto;padding:30px;background:#f9f2e4;color:#263b35"><h1>Jul på torvet</h1><p>Gem dine juleøjeblikke, og tag dem med fra mobil til computer.</p><p><a href="{escape(login_url, quote=True)}" style="display:inline-block;background:#7d322d;color:#fff;padding:14px 22px;border-radius:5px">Åbn min julekalender</a></p><p>Bekræft login på siden. Linket gælder i 15 minutter og kan bruges én gang.</p><p>Hvis du ikke har bedt om linket, kan du ignorere denne mail.</p></div>',
+            },
+            timeout=10,
+        )
+        if response.status_code in (200, 201):
+            return True
+        logger.warning("Kalenderlogin: mailtjenesten svarede med status %s", response.status_code)
+    except httpx.HTTPError:
+        logger.warning("Kalenderlogin: mailtjenesten kunne ikke kontaktes")
+    return False
+
+
 def send_booking_notification(booking, admin_email: str) -> bool:
     """
     Sender e-mail til admin ved ny bookingforespørgsel.

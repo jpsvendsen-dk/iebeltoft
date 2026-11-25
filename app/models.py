@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, Numeric, Enum, DateTime, Text
+from sqlalchemy import Column, Integer, String, Date, Numeric, Enum, DateTime, Text, ForeignKey, Boolean, false, UniqueConstraint, Index
 from sqlalchemy.sql import func
 from app.database import Base
 import enum
@@ -71,3 +71,56 @@ class Booking(Base):
 
     stripe_payment_id = Column(String(200))
     notes = Column(Text)  # Admin-noter
+
+
+class CalendarVisitor(Base):
+    __tablename__ = "calendar_visitors"
+    id = Column(Integer, primary_key=True)
+    email = Column(String(254), unique=True, nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    early_access = Column(Boolean, nullable=False, default=False, server_default=false())
+
+
+class CalendarLoginLink(Base):
+    __tablename__ = "calendar_login_links"
+    token_hash = Column(String(64), primary_key=True)
+    email = Column(String(254), nullable=False)
+    expires_at = Column(DateTime, nullable=False, index=True)
+    used_at = Column(DateTime)
+
+
+class CalendarLoginSession(Base):
+    __tablename__ = "calendar_login_sessions"
+    token_hash = Column(String(64), primary_key=True)
+    visitor_id = Column(Integer, ForeignKey("calendar_visitors.id"), nullable=False, index=True)
+    expires_at = Column(DateTime, nullable=False, index=True)
+
+
+class CalendarOpenedDoor(Base):
+    __tablename__ = "calendar_opened_doors"
+    visitor_id = Column(Integer, ForeignKey("calendar_visitors.id"), primary_key=True)
+    year = Column(Integer, primary_key=True)
+    day = Column(Integer, primary_key=True)
+
+
+class CalendarLoginRate(Base):
+    __tablename__ = "calendar_login_rates"
+    bucket = Column(String(64), primary_key=True)
+    count = Column(Integer, nullable=False)
+    expires_at = Column(DateTime, nullable=False, index=True)
+
+
+class CalendarDoorEvent(Base):
+    __tablename__ = "calendar_door_events"
+    __table_args__ = (
+        UniqueConstraint("visitor_id", "event_id", name="uq_calendar_visitor_event"),
+        Index("ix_calendar_event_history", "year", "clicked_at", "id"),
+        Index("ix_calendar_visitor_history", "visitor_id", "year", "clicked_at"),
+    )
+    id = Column(Integer, primary_key=True)
+    visitor_id = Column(Integer, ForeignKey("calendar_visitors.id"), nullable=False)
+    event_id = Column(String(36), nullable=False)
+    year = Column(Integer, nullable=False)
+    day = Column(Integer, nullable=False)
+    clicked_at = Column(DateTime, nullable=False)
+    result = Column(String(16), nullable=False)  # opened, reopened, locked

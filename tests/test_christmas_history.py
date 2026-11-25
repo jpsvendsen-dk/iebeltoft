@@ -1,0 +1,190 @@
+import re
+import unittest
+import ast
+from pathlib import Path
+from datetime import date, datetime, timedelta
+from uuid import uuid4
+from unittest.mock import patch
+from fastapi import Request
+from sqlalchemy import select, create_engine
+from app.models import CalendarVisitor, CalendarDoorEvent
+from app.routers import christmas, christmas_admin
+import test_christmas_accounts as account_tests
+
+HEADERS = account_tests.HEADERS
+
+
+class CalendarHistoryTests(unittest.TestCase):
+    device = account_tests.CalendarAccountTests.device
+    request_link = account_tests.CalendarAccountTests.request_link
+    login = account_tests.CalendarAccountTests.login
+    save = account_tests.CalendarAccountTests.save
+    tearDown = account_tests.CalendarAccountTests.tearDown
+
+    def setUp(self):
+        account_tests.CalendarAccountTests.setUp(self)
+        self.app.include_router(christmas_admin.router)
+
+        @self.app.get("/test-admin-login")
+        def admin_login(request: Request):
+            request.session["admin"] = True
+            return {"ok": True}
+
+        patch.object(christmas, "today", return_value=date(2026, 12, 8)).start()
+        self.now = datetime(2026, 12, 8, 11, 34, 56)
+
+    def click(self, day, person=None, client=None, event_id=None):
+        return (client or self.client).post(f"/Jul2026/api/doors/{day}/open", headers=HEADERS, json={"event_id": event_id or str(uuid4()), "account_id": person["id"] if person else None, "clicked_at": "1900-01-01T00:00:00Z"})
+
+    def events(self):
+        with self.Session() as db:
+            return db.scalars(select(CalendarDoorEvent).order_by(CalendarDoorEvent.id)).all()
+
+    def admin(self):
+        client = self.device()
+        client.get("/test-admin-login")
+        response = client.get("/admin/jul2026/indstillinger")
+        self.assertEqual(response.status_code, 200)
+        token = re.search(r'name="csrf" value="([^"]+)"', response.text).group(1)
+        return client, token
+
+    def access(self, client, token, person, enabled):
+        return client.post(f"/admin/jul2026/indstillinger/brugere/{person['id']}", data={"csrf": token, "early_access": str(enabled).lower()}, follow_redirects=False)
+
+    def test_each_click_logs_server_time_and_sync_is_not_a_click(self):
+        person = self.login()
+        self.assertEqual(self.click(2, person).status_code, 200)
+        self.now += timedelta(seconds=10)
+        self.assertEqual(self.click(2, person).status_code, 200)
+        self.assertEqual(self.click(24, person).status_code, 403)
+        events = self.events()
+        self.assertEqual([e.result for e in events], ["opened", "reopened", "locked"])
+        self.assertEqual([e.day for e in events], [2, 2, 24])
+        self.assertEqual(events[0].clicked_at, datetime(2026, 12, 8, 11, 34, 56))
+        self.assertEqual(events[0].visitor_id, person["id"])
+        self.assertEqual(self.client.get("/Jul2026/api/doors/2").status_code, 200)
+        self.assertEqual(self.save(self.client, person["id"], [1, 2]).status_code, 200)
+        self.assertEqual(len(self.events()), 3)
+        self.assertEqual(self.client.get("/Jul2026/api/account").json()["account"]["opened"], [1, 2])
+
+    def test_idempotency_and_no_bypass_after_permission_changes(self):
+        person = self.login()
+        event = str(uuid4())
+        self.assertEqual(self.click(2, person, event_id=event).status_code, 200)
+        self.assertEqual(self.click(2, person, event_id=event).status_code, 200)
+        self.assertEqual(len(self.events()), 1)
+        self.assertEqual(self.click(3, person, event_id=event).status_code, 409)
+        locked_id = str(uuid4())
+        self.assertEqual(self.click(24, person, event_id=locked_id).status_code, 403)
+        self.assertEqual(self.click(24, person, event_id=locked_id).status_code, 403)
+        admin, csrf = self.admin()
+        self.assertEqual(self.access(admin, csrf, person, True).status_code, 303)
+        self.assertEqual(self.click(24, person, event_id=locked_id).status_code, 403)
+        opened_id = str(uuid4())
+        self.assertEqual(self.click(24, person, event_id=opened_id).status_code, 200)
+        self.access(admin, csrf, person, False)
+        self.assertEqual(self.click(24, person, event_id=opened_id).status_code, 403)
+        self.assertEqual(len(self.events()), 3)
+
+    def test_admin_can_pregrant_profile_without_sending_mail(self):
+        admin, csrf = self.admin()
+        response = admin.post("/admin/jul2026/indstillinger/tilfoej", data={"csrf": csrf, "email": "EARLY@example.com", "early_access": "true"}, follow_redirects=False)
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(self.mail.call_count, 0)
+        person = self.login("early@example.com")
+        self.assertTrue(person["early_access"])
+        self.assertEqual(self.client.get("/Jul2026/api/state").json()["available"], 24)
+        self.assertEqual(self.click(24, person).status_code, 200)
+        other = self.device()
+        ordinary = self.login("other@example.com", other)
+        self.assertEqual(other.get("/Jul2026/api/state").json()["available"], 8)
+        self.assertEqual(self.click(24, ordinary, other).status_code, 403)
+        # Adding an existing address must never overwrite that person's access.
+        admin.post("/admin/jul2026/indstillinger/tilfoej", data={"csrf": csrf, "email": "early@example.com"})
+        self.assertTrue(self.client.get("/Jul2026/api/account").json()["account"]["early_access"])
+
+    def test_revoking_access_keeps_progress_across_devices(self):
+        person = self.login()
+        admin, csrf = self.admin()
+        self.access(admin, csrf, person, True)
+        self.assertEqual(self.click(24, person).status_code, 200)
+        self.now += timedelta(minutes=2)
+        second = self.device()
+        profile = self.login(client=second)
+        self.assertEqual(profile["opened"], [24])
+        self.assertEqual(second.get("/Jul2026/api/state").json()["available"], 24)
+        self.access(admin, csrf, person, False)
+        for client in (self.client, second):
+            self.assertEqual(client.get("/Jul2026/api/state").json()["available"], 8)
+            self.assertIn(24, client.get("/Jul2026/api/account").json()["account"]["opened"])
+            self.assertEqual(client.get("/Jul2026/api/doors/24").status_code, 403)
+            self.assertEqual(self.save(client, person["id"], [1, 24]).status_code, 200)
+            self.assertEqual(self.save(client, person["id"], [23, 24]).status_code, 422)
+
+    def test_guest_and_admin_preview_do_not_create_user_events(self):
+        self.assertEqual(self.click(2).status_code, 200)
+        self.assertEqual(self.click(24).status_code, 403)
+        admin, _ = self.admin()
+        response = admin.post("/admin/jul2026/api/doors/24/open", headers=HEADERS, json={"event_id": str(uuid4()), "account_id": None})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.events(), [])
+        self.assertEqual(self.client.post("/admin/jul2026/api/doors/24/open", headers=HEADERS, json={"event_id": str(uuid4())}).status_code, 401)
+
+    def test_public_cannot_read_history_or_change_access(self):
+        person = self.login()
+        admin, token = self.admin()
+        for path in ("/admin/jul2026/indstillinger", "/admin/jul2026/historik"):
+            self.assertEqual(self.client.get(path, follow_redirects=False).status_code, 303)
+        self.assertEqual(self.access(self.client, token, person, True).status_code, 401)
+        self.assertEqual(self.access(admin, "wrong-token", person, True).status_code, 403)
+        self.assertEqual(admin.post(f"/admin/jul2026/indstillinger/brugere/{person['id']}", data={"early_access": "true"}).status_code, 422)
+        self.assertFalse(self.client.get("/Jul2026/api/account").json()["account"]["early_access"])
+        self.assertEqual(self.click(1, {"id": person["id"] + 1}).status_code, 409)
+        self.assertEqual(self.client.post("/Jul2026/api/doors/1/open", json={"event_id": str(uuid4()), "account_id": person["id"]}).status_code, 403)
+        self.assertEqual(self.events(), [])
+
+    def test_history_has_danish_time_filters_and_pagination(self):
+        person = self.login("tag+one@example.com")
+        self.click(2, person)
+        self.now = datetime(2026, 7, 1, 10, 0, 0)
+        self.click(3, person)
+        admin, _ = self.admin()
+        history = admin.get("/admin/jul2026/historik")
+        self.assertIn("08.12.2026 kl. 12:34:56 CET", history.text)
+        self.assertIn("01.07.2026 kl. 12:00:00 CEST", history.text)
+        self.assertEqual(history.headers["cache-control"], "no-store")
+        filtered = admin.get("/admin/jul2026/historik", params={"email": person["email"], "day": "3"})
+        self.assertIn("1 hændelser", filtered.text)
+        self.assertNotIn("08.12.2026 kl.", filtered.text)
+        self.assertEqual(admin.get("/admin/jul2026/historik?day=").status_code, 200)
+        self.assertEqual(admin.get("/admin/jul2026/historik?day=25").status_code, 422)
+        self.assertIn("Ingen hændelser fundet", admin.get("/admin/jul2026/historik?email=absent@example.com").text)
+        with self.Session() as db:
+            for _ in range(50):
+                db.add(CalendarDoorEvent(visitor_id=person["id"], event_id=str(uuid4()), year=2026, day=1, clicked_at=self.now, result="reopened"))
+            db.commit()
+        first = admin.get("/admin/jul2026/historik")
+        second = admin.get("/admin/jul2026/historik?page=2")
+        self.assertEqual(first.text.count("<time "), 50)
+        self.assertEqual(second.text.count("<time "), 2)
+        self.assertIn("Næste side", first.text)
+        self.assertIn("Forrige side", second.text)
+
+    def test_door_input_validation(self):
+        person = self.login()
+        for day in (0, 25):
+            self.assertEqual(self.click(day, person).status_code, 404)
+        self.assertEqual(self.click(1, person, event_id="invalid").status_code, 422)
+        self.assertEqual(self.events(), [])
+
+    def test_migration_preserves_existing_profile_and_defaults_to_locked(self):
+        source = ast.parse(Path("app/main.py").read_text(encoding="utf-8"))
+        migrations = next(ast.literal_eval(node.value) for node in source.body if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == "_MIGRATIONS" for target in node.targets))
+        upgrade = next(sql for sql in migrations if sql.startswith("ALTER TABLE calendar_visitors"))
+        engine = create_engine("sqlite://")
+        with engine.begin() as connection:
+            connection.exec_driver_sql("CREATE TABLE calendar_visitors (id INTEGER PRIMARY KEY, email VARCHAR(254) NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
+            connection.exec_driver_sql("INSERT INTO calendar_visitors (email) VALUES ('existing@example.com')")
+            connection.exec_driver_sql(upgrade)
+            self.assertEqual(tuple(connection.exec_driver_sql("SELECT email, early_access FROM calendar_visitors").one()), ("existing@example.com", 0))
+        engine.dispose()

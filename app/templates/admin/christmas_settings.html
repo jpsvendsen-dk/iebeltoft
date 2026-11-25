@@ -1,0 +1,32 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Kalenderopsætning{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-800 mb-2">Kalenderopsætning</h1>
+<p class="text-gray-600 mb-6">Giv udvalgte e-mailprofiler adgang til alle 24 låger før decemberdatoen. Andre besøgende følger den almindelige datolås.</p>
+<div class="flex flex-wrap gap-4 mb-6"><a class="text-blue-700 underline" href="/admin/jul2026">Åbn administratorens prøvevisning</a><a class="text-blue-700 underline" href="/admin/jul2026/historik">Se lågehistorik</a><a class="text-blue-700 underline" href="/Jul2026">Se besøgendes kalender</a></div>
+{% if message %}<p role="status" class="bg-green-50 border border-green-300 text-green-800 rounded-lg p-3 mb-6">{{ message }}</p>{% endif %}
+<section class="bg-white rounded-xl shadow-sm p-6 mb-6 max-w-2xl">
+  <h2 class="text-lg font-semibold mb-2">Tilføj en e-mailprofil</h2>
+  <p class="text-gray-600 mb-4">Personen skal stadig bekræfte sin e-mail via loginlinket. Denne formular sender ingen mail.</p>
+  <form method="post" action="/admin/jul2026/indstillinger/tilfoej" class="space-y-4">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label class="block">E-mailadresse<input type="email" name="email" required maxlength="254" autocomplete="off" class="block w-full border rounded-lg px-3 py-2 mt-1"></label>
+    <label class="flex gap-3 items-start"><input type="checkbox" name="early_access" value="true" class="mt-1.5 h-4 w-4"><span>Tillad åbning af alle 24 låger før datoen</span></label>
+    <button class="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700" type="submit">Tilføj profil</button>
+  </form>
+</section>
+<form class="flex flex-wrap gap-3 items-end mb-4" method="get"><label>Søg efter e-mail<input name="q" value="{{ q }}" maxlength="254" class="block border rounded-lg px-3 py-2 mt-1"></label><button class="bg-white border rounded-lg px-4 py-2" type="submit">Søg</button><a class="text-blue-700 underline py-2" href="/admin/jul2026/indstillinger">Vis alle</a></form>
+<p class="text-gray-600 mb-3">{{ total }} profiler · Side {{ page }}</p>
+<div class="space-y-3">
+{% for person in people %}
+  <form method="post" action="/admin/jul2026/indstillinger/brugere/{{ person.id }}" class="bg-white rounded-xl shadow-sm p-5 flex flex-wrap items-center gap-5">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="flex-1 min-w-0"><p class="font-semibold break-all">{{ person.email }}</p><a href="/admin/jul2026/historik?email={{ person.email|urlencode }}" class="text-blue-700 underline">Se brugerens historik</a></div>
+    <label class="flex gap-3 items-start"><input type="checkbox" name="early_access" value="true" {% if person.early_access %}checked{% endif %} class="mt-1.5 h-4 w-4"><span>Tillad åbning af alle 24 låger før datoen</span></label>
+    <button class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700" type="submit">Gem adgang</button>
+  </form>
+{% else %}<p class="bg-white p-5 rounded-lg">Der er ingen profiler i denne søgning.</p>{% endfor %}
+</div>
+<p class="text-gray-600 mt-4">Hvis tidlig adgang fjernes, låses fremtidige låger igen. Historik og allerede åbnede låger bevares. Den besøgende kan opdatere kalenderen for at hente den ændrede adgang.</p>
+<nav class="flex gap-6 mt-6" aria-label="Profilsider">{% if page > 1 %}<a class="text-blue-700 underline" href="?q={{ q|urlencode }}&amp;page={{ page-1 }}">Forrige side</a>{% endif %}{% if has_next %}<a class="text-blue-700 underline" href="?q={{ q|urlencode }}&amp;page={{ page+1 }}">Næste side</a>{% endif %}</nav>
+{% endblock %}

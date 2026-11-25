@@ -1,0 +1,19 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Lågehistorik{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-800 mb-2">Lågehistorik · 2026</h1>
+<p class="text-gray-600 mb-4">Hvert tryk fra en bruger med e-maillogin registreres, også genåbninger og forsøg på låste låger. Tidspunkterne vises i dansk tid med sekunder.</p>
+<a class="text-blue-700 underline" href="/admin/jul2026/indstillinger">Kalenderopsætning og brugeradgang</a>
+<form method="get" class="flex flex-wrap gap-4 items-end my-6">
+  <label>Brugerens e-mail<input name="email" type="email" value="{{ email }}" maxlength="254" class="block border rounded-lg px-3 py-2 mt-1"></label>
+  <label>Låge<select name="day" class="block border rounded-lg px-3 py-2 mt-1"><option value="">Alle låger</option>{% for n in range(1,25) %}<option value="{{ n }}" {% if day == n %}selected{% endif %}>Låge {{ n }}</option>{% endfor %}</select></label>
+  <button type="submit" class="bg-blue-600 text-white rounded-lg px-5 py-2">Vis historik</button><a class="text-blue-700 underline py-2" href="/admin/jul2026/historik">Nulstil filtre</a>
+</form>
+<p class="text-gray-600 mb-3">{{ total }} hændelser · Side {{ page }}</p>
+<div class="overflow-x-auto bg-white rounded-xl shadow-sm"><table class="w-full text-left"><thead class="bg-gray-50"><tr><th class="p-4">Dato og klokkeslet</th><th class="p-4">Bruger</th><th class="p-4">Låge</th><th class="p-4">Resultat</th></tr></thead><tbody>
+{% for event in events %}<tr class="border-t"><td class="p-4 whitespace-nowrap"><time datetime="{{ event.iso }}">{{ event.time }}</time></td><td class="p-4 break-all">{{ event.email }}</td><td class="p-4">{{ event.day }}</td><td class="p-4">{{ event.result }}</td></tr>
+{% else %}<tr><td colspan="4" class="p-6 text-gray-600">Ingen hændelser fundet. Historik registreres fra denne opdatering; tidligere åbninger får ikke tilføjet et opdigtet tidspunkt.</td></tr>{% endfor %}
+</tbody></table></div>
+<nav class="flex gap-6 mt-6" aria-label="Historiksider">{% if page > 1 %}<a class="text-blue-700 underline" href="?email={{ email|urlencode }}{% if day %}&amp;day={{ day }}{% endif %}&amp;page={{ page-1 }}">Forrige side</a>{% endif %}{% if has_next %}<a class="text-blue-700 underline" href="?email={{ email|urlencode }}{% if day %}&amp;day={{ day }}{% endif %}&amp;page={{ page+1 }}">Næste side</a>{% endif %}</nav>
+<p class="text-gray-600 mt-5">Besøg uden login og administratorens prøvevisning indgår ikke i brugerhistorikken.</p>
+{% endblock %}
