@@ -133,7 +133,7 @@ class SnakeApiTests(unittest.TestCase):
         self.finish(person,round)
         second=self.device();self.now+=timedelta(minutes=2);self.login(client=second)
         profile=second.get(ROOT+'/profile').json()['profile']
-        self.assertEqual((profile['display_name'],profile['best_score'],profile['is_public']),('Juleven',10,False))
+        self.assertEqual((profile['display_name'],profile['best_score'],profile['is_public']),('Juleven',10,True))
         self.assertEqual(self.preferences(person,'Juleven',True,second).status_code,200)
         self.assertEqual(self.client.get(ROOT+'/leaderboard').json()['players'][0]['name'],'Juleven')
 
@@ -158,14 +158,14 @@ class SnakeApiTests(unittest.TestCase):
     def preferences(self, person, name, public=True, client=None):
         return (client or self.client).post(ROOT+'/profile',headers=HEADERS,json={'account_id':person['id'],'display_name':name,'is_public':public})
 
-    def test_record_is_private_atomic_and_shared_across_devices(self):
+    def test_unnamed_record_is_atomic_and_shared_across_devices(self):
         person=self.login()
         round=self.start(person)
         self.now+=timedelta(seconds=3)
         saved=self.finish(person,round)
         self.assertEqual(saved.status_code,200,saved.text)
         self.assertEqual(saved.json()['score'],10)
-        self.assertFalse(saved.json()['profile']['is_public'])
+        self.assertTrue(saved.json()['profile']['is_public'])
         self.assertEqual(self.client.get(ROOT+'/leaderboard').json()['players'],[])
         self.assertEqual(self.finish(person,round).status_code,200)
         self.assertEqual(self.finish(person,round,ticks=10,turns=[]).status_code,409)
@@ -179,7 +179,7 @@ class SnakeApiTests(unittest.TestCase):
         with self.Session() as db:
             self.assertEqual(len(db.scalars(select(Round).where(Round.finished_at.is_not(None))).all()),2)
 
-    def test_names_opt_in_and_toplist_never_expose_email(self):
+    def test_named_scores_always_appear_and_never_expose_email(self):
         person=self.login()
         for name in ('a','...','a@example.com','https://bad','😀😀','--','a'*21):
             self.assertEqual(self.preferences(person,name).status_code,422)
@@ -196,7 +196,12 @@ class SnakeApiTests(unittest.TestCase):
         self.preferences(person,'Nyt Navn')
         self.assertEqual(self.client.get(ROOT+'/leaderboard').json()['players'][0]['name'],'Nyt Navn')
         self.preferences(person,'Nyt Navn',False)
-        self.assertEqual(self.client.get(ROOT+'/leaderboard').json()['players'],[])
+        self.assertTrue(self.client.get(ROOT+'/profile').json()['profile']['is_public'])
+        self.assertEqual(self.client.get(ROOT+'/leaderboard').json()['players'][0]['name'],'Nyt Navn')
+        with self.Session() as db:
+            db.get(Profile,(person['id'],2026)).is_public=False
+            db.commit()
+        self.assertEqual(self.client.get(ROOT+'/leaderboard').json()['players'][0]['name'],'Nyt Navn')
         self.assertEqual(self.client.get(ROOT+'/profile').json()['profile']['best_score'],10)
 
     def test_invalid_replays_time_ownership_and_origin(self):

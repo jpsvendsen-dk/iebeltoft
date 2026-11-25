@@ -170,12 +170,12 @@ export async function runSnakeTests() {
   const nameSave=harness({account_id:31,best_score:0,display_name:'',is_public:false});nameSave.open();nameSave.get('snake-view-top').click();nameSave.drain();
   assert.equal(nameSave.get('snake-layout').dataset.view,'top');
   nameSave.get('snake-name').value='Juleven';nameSave.get('snake-name').emit('input');nameSave.tick();
-  assert.equal(nameSave.profile().display_name,'Juleven');assert.equal(nameSave.profile().is_public,false);
+  assert.equal(nameSave.profile().display_name,'Juleven');assert.equal(nameSave.profile().is_public,true);assert.equal(nameSave.get('snake-public').checked,true);
   assert(nameSave.get('snake-preferences-status').textContent.includes('Gemt'));
   nameSave.get('snake-dialog').close();nameSave.open();assert.equal(nameSave.get('snake-name').value,'Juleven');
   assert.equal(nameSave.get('snake-layout').dataset.view,'play');
-  nameSave.get('snake-view-top').click();nameSave.get('snake-public').checked=true;nameSave.get('snake-public').emit('change');nameSave.drain();
-  assert.equal(nameSave.profile().is_public,true);
+  nameSave.get('snake-view-top').click();nameSave.get('snake-public').checked=false;nameSave.get('snake-public').emit('change');nameSave.drain();
+  assert.equal(nameSave.profile().is_public,true);assert.equal(nameSave.get('snake-public').checked,true);
   assert(nameSave.get('snake-membership').textContent.includes('Afslut et spil med point'));
   nameSave.get('snake-name').value='Ny Nisse';nameSave.get('snake-name').emit('input');nameSave.get('snake-view-play').click();nameSave.drain();
   assert.equal(nameSave.profile().display_name,'Ny Nisse');
@@ -183,5 +183,5 @@ export async function runSnakeTests() {
   assert.equal(nameSave.profile().display_name,'Ny Nisse');assert.equal(nameSave.get('snake-preferences-status').getAttribute('data-error'),'');
   nameSave.preferencesFail(false);nameSave.get('snake-preferences').emit('submit');nameSave.drain();assert.equal(nameSave.profile().display_name,'Nyt navn');
   const savedRequests=nameSave.calls.filter(c=>c.url.endsWith('/profile')&&c.options.method==='POST');assert(savedRequests.every(c=>c.options.keepalive===true));
-  return 'OK: deterministic replay, gift collection, direction controls/swipe, pause/visibility/orientation, guest storage, server-only profile records, opt-in leaderboard, retry and account switching.';
+  return 'OK: deterministic replay, gift collection, direction controls/swipe, pause/visibility/orientation, guest storage, server-only profile records, automatic named leaderboard, retry and account switching.';
 }

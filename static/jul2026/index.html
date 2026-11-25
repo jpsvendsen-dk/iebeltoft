@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="/static/jul2026/calendar.css?v=16">
   <link rel="stylesheet" href="/static/jul2026/snake.css?v=7">
   <script src="/static/jul2026/calendar.js?v=16" defer></script>
-  <script type="module" src="/static/jul2026/snake.js?v=7"></script>
+  <script type="module" src="/static/jul2026/snake.js?v=8"></script>
 </head>
 <body>
   <div class="christmas-world">
@@ -52,9 +52,9 @@
         <p class="snake-hint">Brug piletaster/WASD, knapperne eller swipe på spillepladen. Spillet pauses, når du forlader det. 2 liv og ét ekstra, når du kommer over 500 point.</p>
       </section>
       <aside class="snake-social" aria-label="Profil og topliste">
-        <h3>Julens top 10 · 2026</h3><p id="snake-membership" class="snake-hint"></p><p class="snake-hint">Toplisten er frivillig. Den viser spillere, der har tilmeldt sig og har en rekord over 0 point. Ved samme pointtal kommer den først opnåede rekord øverst.</p><ol id="snake-toplist" aria-label="Topliste"><li>Henter julens rekorder …</li></ol><button type="button" id="snake-top-refresh">Opdatér topliste</button>
+        <h3>Julens top 10 · 2026</h3><p id="snake-membership" class="snake-hint"></p><p class="snake-hint">Toplisten viser automatisk spillere med et gemt spillernavn og en rekord over 0 point. Ved samme pointtal kommer den først opnåede rekord øverst.</p><ol id="snake-toplist" aria-label="Topliste"><li>Henter julens rekorder …</li></ol><button type="button" id="snake-top-refresh">Opdatér topliste</button>
         <p id="snake-profile-note"></p><button type="button" id="snake-login">Log ind for at gemme din rekord</button>
-        <section id="snake-settings" hidden aria-labelledby="snake-settings-title"><h3 id="snake-settings-title">Dit spillernavn</h3><form id="snake-preferences"><label for="snake-name">Spillernavn</label><input id="snake-name" name="display_name" maxlength="20" minlength="2" autocomplete="off" aria-describedby="snake-name-help snake-preferences-status"><p id="snake-name-help" class="snake-hint">2–20 tegn. Navnet gemmes automatisk på din profil og huskes på dine andre enheder. Din e-mail vises ikke.</p><label class="snake-opt-in"><input id="snake-public" type="checkbox"> Vis mit spillernavn og min rekord på toplisten</label><button id="snake-settings-save" type="submit">Gem indstillinger</button><p id="snake-preferences-status" class="snake-hint" role="status" aria-live="polite"></p></form></section>
+        <section id="snake-settings" hidden aria-labelledby="snake-settings-title"><h3 id="snake-settings-title">Dit spillernavn</h3><form id="snake-preferences"><label for="snake-name">Spillernavn</label><input id="snake-name" name="display_name" maxlength="20" minlength="2" autocomplete="off" aria-describedby="snake-name-help snake-preferences-status"><p id="snake-name-help" class="snake-hint">2–20 tegn. Navnet gemmes automatisk på din profil og huskes på dine andre enheder. Din e-mail vises ikke.</p><label class="snake-opt-in"><input id="snake-public" type="checkbox" checked disabled> Vis mit spillernavn og min rekord på toplisten</label><button id="snake-settings-save" type="submit">Gem indstillinger</button><p id="snake-preferences-status" class="snake-hint" role="status" aria-live="polite"></p></form></section>
       </aside>
     </div>
   </dialog>

@@ -1,4 +1,4 @@
-"""Personal, opt-in public Snake scores; the server replays every saved game."""
+"""Public named Snake scores; the server replays every saved game."""
 import hashlib
 import secrets
 import unicodedata
@@ -52,7 +52,7 @@ def log_click(body: Click, request: Request, db: Session = Depends(get_db)):
 
 class Preferences(Identity):
     display_name: str = Field(default="", max_length=40)
-    is_public: StrictBool
+    is_public: StrictBool = True
 
 
 class Turn(BaseModel):
@@ -80,7 +80,7 @@ def ensure_profile(db, visitor_id):
 
 def profile_data(db, visitor_id):
     profile = db.get(Profile, (visitor_id, accounts.YEAR))
-    return {"account_id": visitor_id, "best_score": profile.best_score if profile else 0, "display_name": (profile.display_name or "") if profile else "", "is_public": bool(profile and profile.is_public)}
+    return {"account_id": visitor_id, "best_score": profile.best_score if profile else 0, "display_name": (profile.display_name or "") if profile else "", "is_public": True}
 
 
 @router.get("/profile")
@@ -96,11 +96,11 @@ def preferences(body: Preferences, request: Request, db: Session = Depends(get_d
     name = " ".join(unicodedata.normalize("NFKC", body.display_name).split())
     if name and (not 2 <= len(name) <= 20 or not all(c.isalpha() or c.isdecimal() or c in " -_" for c in name) or not any(c.isalnum() for c in name)):
         raise HTTPException(422, "Vælg 2–20 tegn: bogstaver, tal, mellemrum, bindestreg eller understregning.")
-    if body.is_public and not name:
+    if not name:
         raise HTTPException(422, "Vælg et spillernavn for at deltage på toplisten.")
     try:
         ensure_profile(db, person.id)
-        db.execute(update(Profile).where(Profile.visitor_id == person.id, Profile.year == accounts.YEAR).values(display_name=name or None, name_key=name.casefold() or None, is_public=body.is_public))
+        db.execute(update(Profile).where(Profile.visitor_id == person.id, Profile.year == accounts.YEAR).values(display_name=name, name_key=name.casefold(), is_public=True))
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -110,7 +110,7 @@ def preferences(body: Preferences, request: Request, db: Session = Depends(get_d
 
 @router.get("/leaderboard")
 def leaderboard(db: Session = Depends(get_db)):
-    people = db.scalars(select(Profile).where(Profile.year == accounts.YEAR, Profile.is_public.is_(True), Profile.best_score > 0).order_by(Profile.best_score.desc(), Profile.achieved_at.asc(), Profile.visitor_id.asc()).limit(10)).all()
+    people = db.scalars(select(Profile).where(Profile.year == accounts.YEAR, Profile.display_name.is_not(None), Profile.display_name != "", Profile.best_score > 0).order_by(Profile.best_score.desc(), Profile.achieved_at.asc(), Profile.visitor_id.asc()).limit(10)).all()
     return JSONResponse({"players": [{"rank": i + 1, "name": p.display_name, "score": p.best_score} for i, p in enumerate(people)]}, headers=HEADERS)
 
 

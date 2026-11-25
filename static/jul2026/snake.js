@@ -44,7 +44,8 @@ import {SnakeAudio} from './snake-audio.js?v=2';
     $('snake-login').hidden = Boolean(profile);
     $('snake-profile-note').textContent = profile ? 'Din rekord gemmes på kalenderprofilen på tværs af enheder.' : 'Gæstespil · Rekorden gemmes kun i denne browser. Log ind for at gemme på din profil.';
     $('snake-player-note').textContent=profile?.display_name?`Du spiller som ${profile.display_name}`:profile?'Du er logget ind · Vælg dit spillernavn under “Julens top 10”.':'Du spiller som gæst';
-    $('snake-membership').textContent=!profile?'Log ind for at gemme dit spillernavn og deltage.':!profile.is_public?'Din rekord er privat. Tilmeld dig nedenfor, hvis den skal vises på toplisten.':profile.best_score===0?`Du er tilmeldt som ${profile.display_name}. Afslut et spil med point for at komme med på listen.`:`Du deltager som ${profile.display_name} · Din rekord er ${profile.best_score} point.`;
+    $('snake-public').checked=true;
+    $('snake-membership').textContent=!profile?'Log ind for at gemme dit spillernavn og deltage.':!profile.display_name?'Gem dit spillernavn nedenfor. Din rekord kommer automatisk med på toplisten.':profile.best_score===0?`Du spiller som ${profile.display_name}. Afslut et spil med point for at komme med på listen.`:`Du deltager som ${profile.display_name} · Din rekord er ${profile.best_score} point.`;
   }
   function draw() { renderer.update(game || preview, phase); }
   async function leaderboard() {
@@ -52,7 +53,7 @@ import {SnakeAudio} from './snake-audio.js?v=2';
     try {
       const data=await request('/leaderboard');if(generation!==leaderboardGeneration)return;list.replaceChildren();
       for(const player of data.players){const row=document.createElement('li'),name=document.createElement('span'),score=document.createElement('strong');name.textContent=`${player.rank}. ${player.name}`;score.textContent=`${player.score} point`;row.append(name,score);list.append(row);}
-      if(!data.players.length){const row=document.createElement('li');row.textContent='Ingen spillere har endnu tilmeldt en rekord. Du kan tilmelde dig nedenfor.';list.append(row);}
+      if(!data.players.length){const row=document.createElement('li');row.textContent='Ingen rekorder endnu. Gem dit spillernavn og afslut et spil med point.';list.append(row);}
     } catch (_) {if(generation===leaderboardGeneration)list.textContent='Toplisten kunne ikke hentes. Tryk “Opdatér topliste” for at prøve igen.';}
   }
   async function loadProfile() {
@@ -66,7 +67,7 @@ import {SnakeAudio} from './snake-audio.js?v=2';
       const changed=identity(profile)!==identity(data.profile);
       profile=data.profile;loaded=true;
       if(changed){preferencesDirty=false;clearTimeout(preferencesTimer);}
-      if(!preferencesDirty){$('snake-name').value=profile?.display_name||'';$('snake-public').checked=Boolean(profile?.is_public);$('snake-preferences-status').textContent=profile?.display_name?'Spillernavnet er gemt på din profil.':'';$('snake-preferences-status').removeAttribute('data-error');}
+      if(!preferencesDirty){$('snake-name').value=profile?.display_name||'';$('snake-public').checked=true;$('snake-preferences-status').textContent=profile?.display_name?'Spillernavnet er gemt på din profil.':'';$('snake-preferences-status').removeAttribute('data-error');}
       if(!game)message('Du har 2 liv. Saml gaver, og få ét ekstra liv, når du kommer over 500 point.');
     } catch(error){loaded=false;message(error.message||'Din profil kunne ikke hentes. Prøv igen.');}
     finally{if(generation===loadGeneration){loading=false;controls();draw();}}
@@ -115,7 +116,7 @@ import {SnakeAudio} from './snake-audio.js?v=2';
       if(!await savePreferences())throw Error('Spillernavnet kunne ikke gemmes. Se beskeden under “Julens top 10”.');
       const data=await request('/profile');
       profile=data.profile;
-      if(!preferencesDirty){$('snake-name').value=profile?.display_name||'';$('snake-public').checked=Boolean(profile?.is_public);}
+      if(!preferencesDirty){$('snake-name').value=profile?.display_name||'';$('snake-public').checked=true;}
       let seed;
       if(profile){const started=await request('/rounds',{account_id:profile.account_id,rules_version:3});round={...started,account_id:profile.account_id};seed=started.seed;}
       else{round=null;const random=new Uint32Array(1);crypto.getRandomValues(random);seed=random[0]||1;}
@@ -169,7 +170,7 @@ import {SnakeAudio} from './snake-audio.js?v=2';
     clearTimeout(preferencesTimer);
     if(!profile||!preferencesDirty)return true;
     if(preferencesPromise){const success=await preferencesPromise;return success&&preferencesDirty?savePreferences():success;}
-    const accountId=profile.account_id,name=$('snake-name').value,isPublic=$('snake-public').checked,status=$('snake-preferences-status');
+    const accountId=profile.account_id,name=$('snake-name').value,isPublic=true,status=$('snake-preferences-status');
     status.textContent='Gemmer på din profil …';status.removeAttribute('data-error');$('snake-settings-save').disabled=true;
     preferencesPromise=(async()=>{
       try{
@@ -185,7 +186,7 @@ import {SnakeAudio} from './snake-audio.js?v=2';
   }
   $('snake-name').addEventListener('input',()=>{preferencesDirty=true;$('snake-preferences-status').textContent='Ikke gemt endnu …';clearTimeout(preferencesTimer);preferencesTimer=setTimeout(()=>void savePreferences(),600);});
   $('snake-name').addEventListener('change',()=>{preferencesDirty=true;void savePreferences();});
-  $('snake-public').addEventListener('change',()=>{preferencesDirty=true;void savePreferences();});
+  $('snake-public').addEventListener('change',()=>{$('snake-public').checked=true;});
   $('snake-preferences').addEventListener('submit',event=>{event.preventDefault();preferencesDirty=true;pause();void savePreferences();});
   function showView(view,save=true){
     if(view==='top'){pause();void leaderboard();}else if(save)void savePreferences();
