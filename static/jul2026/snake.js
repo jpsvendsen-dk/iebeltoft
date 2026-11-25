@@ -1,9 +1,11 @@
 import {SnakeGame} from './snake-core.js?v=1';
 import {SnakeRenderer} from './snake-renderer.js?v=3';
+import {SnakeAudio} from './snake-audio.js?v=1';
 
 (() => {
   const $ = id => document.getElementById(id), dialog = $('snake-dialog'), canvas = $('snake-board');
   const renderer = new SnakeRenderer(canvas), preview = new SnakeGame(2026), api = '/Jul2026/api/snake';
+  const sounds = new SnakeAudio();
   let game = null, round = null, turns = [], directionQueue = [], timer;
   let phase = 'idle', profile = null, loaded = false, loading = false, saving = false, pending = false, failedSave = false;
   let loadGeneration = 0, guestBest = 0;
@@ -17,6 +19,10 @@ import {SnakeRenderer} from './snake-renderer.js?v=3';
     return data;
   }
   function controls() {
+    const soundEnabled=$('sound').getAttribute('aria-pressed')!=='false';
+    sounds.setEnabled(soundEnabled);
+    $('snake-sound').textContent=soundEnabled?'♫ Lyd til':'♫ Lyd fra';
+    $('snake-sound').setAttribute('aria-pressed',String(soundEnabled));
     $('snake-score').textContent = game?.score || 0;
     $('snake-best').textContent = profile ? profile.best_score : guestBest;
     $('snake-start').hidden = !['idle','over'].includes(phase);
@@ -55,7 +61,7 @@ import {SnakeRenderer} from './snake-renderer.js?v=3';
     } catch(error){loaded=false;message(error.message||'Din profil kunne ikke hentes. Prøv igen.');}
     finally{if(generation===loadGeneration){loading=false;controls();draw();}}
   }
-  function pause() {if(phase==='running'){clearTimeout(timer);directionQueue=[];phase='paused';message('Spillet er på pause. Tryk Fortsæt, når du er klar.');controls();draw();}}
+  function pause() {sounds.stop();if(phase==='running'){clearTimeout(timer);directionQueue=[];phase='paused';message('Spillet er på pause. Tryk Fortsæt, når du er klar.');controls();draw();}}
   async function saveResult() {
     if(!pending || saving || !round)return;
     saving=true;failedSave=false;message('Gemmer resultatet på din profil …');controls();
@@ -69,6 +75,7 @@ import {SnakeRenderer} from './snake-renderer.js?v=3';
   }
   function finish() {
     phase='over';
+    sounds.play(game.won?'start':'over');
     if(round){pending=true;void saveResult();}
     else {guestBest=Math.max(guestBest,game.score);try{localStorage.setItem('jul2026-snake-guest-best',String(guestBest));}catch(_){}message(`Spillet er slut · ${game.score} point. Din lokale rekord er ${guestBest} point.`);}
     controls();draw();
@@ -79,12 +86,15 @@ import {SnakeRenderer} from './snake-renderer.js?v=3';
       if(phase!=='running')return;
       const direction=directionQueue.shift()??null;
       if(direction!==null){turns.push({tick:game.tick+1,direction});}
+      const before=game.score;
       game.step(direction);controls();draw();
+      if(game.score>before&&!game.over)sounds.play('gift');
       if(game.over)finish();else schedule();
     },game.interval);
   }
   async function start() {
     if(!loaded || loading || saving || pending || ['running','paused'].includes(phase))return;
+    sounds.stop();void sounds.unlock();
     loading=true;controls();
     try {
       const data=await request('/profile');
@@ -94,7 +104,7 @@ import {SnakeRenderer} from './snake-renderer.js?v=3';
       else{round=null;const random=new Uint32Array(1);crypto.getRandomValues(random);seed=random[0]||1;}
       game=new SnakeGame(seed);turns=[];directionQueue=[];phase=dialog.open&&!document.hidden?'running':'paused';
       failedSave=false;message(phase==='running'?'God gavejagt!':'Spillet er på pause. Tryk Fortsæt.');
-      if(phase==='running')schedule();
+      if(phase==='running'){sounds.play('start');schedule();}
       if(phase==='running')canvas.focus({preventScroll:true});
     } catch(error){message(error.message||'Spillet kunne ikke starte. Prøv igen.');}
     finally{loading=false;controls();draw();}
@@ -119,7 +129,8 @@ import {SnakeRenderer} from './snake-renderer.js?v=3';
   $('snake-start').addEventListener('click',start);
   $('snake-retry').addEventListener('click',saveResult);
   $('snake-reload').addEventListener('click',loadProfile);
-  $('snake-pause').addEventListener('click',()=>{if(loading)return;if(phase==='running')pause();else if(phase==='paused'){phase='running';message('God gavejagt!');controls();draw();schedule();canvas.focus({preventScroll:true});}});
+  $('snake-pause').addEventListener('click',()=>{if(loading)return;if(phase==='running')pause();else if(phase==='paused'){void sounds.unlock();phase='running';message('God gavejagt!');controls();draw();schedule();canvas.focus({preventScroll:true});}});
+  $('snake-sound').addEventListener('click',()=>{$('sound').click();controls();if(sounds.enabled)void sounds.unlock();});
   $('snake-login').addEventListener('click',()=>{dialog.close();$('account-open').click();});
   const keyMap={ArrowRight:0,d:0,D:0,ArrowDown:1,s:1,S:1,ArrowLeft:2,a:2,A:2,ArrowUp:3,w:3,W:3};
   document.addEventListener('keydown',event=>{

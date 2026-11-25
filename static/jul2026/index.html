@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="/static/jul2026/calendar.css?v=16">
   <link rel="stylesheet" href="/static/jul2026/snake.css?v=2">
   <script src="/static/jul2026/calendar.js?v=16" defer></script>
-  <script type="module" src="/static/jul2026/snake.js?v=3"></script>
+  <script type="module" src="/static/jul2026/snake.js?v=4"></script>
 </head>
 <body>
   <div class="christmas-world">
@@ -44,7 +44,7 @@
       <section class="snake-play" aria-label="Spilleområde">
         <div class="snake-scores"><span>Point <strong id="snake-score">0</strong></span><span>Din rekord <strong id="snake-best">0</strong></span></div>
         <canvas id="snake-board" width="440" height="440" tabindex="0" role="img" aria-label="Snake-spilleplade: saml gaver med piletaster, WASD eller swipe. Undgå kanten og din egen krop.">Din browser understøtter ikke spillepladen.</canvas>
-        <div class="snake-toolbar"><button id="snake-start" type="button">Start spil</button><button id="snake-pause" type="button" hidden>Pause</button><button id="snake-retry" type="button" hidden>Prøv at gemme igen</button><button id="snake-reload" type="button" hidden>Hent profil igen</button></div>
+        <div class="snake-toolbar"><button id="snake-start" type="button">Start spil</button><button id="snake-pause" type="button" hidden>Pause</button><button id="snake-sound" type="button" aria-pressed="true" aria-label="Slå spillets og kalenderens lyd til eller fra">♫ Lyd til</button><button id="snake-retry" type="button" hidden>Prøv at gemme igen</button><button id="snake-reload" type="button" hidden>Hent profil igen</button></div>
         <div class="snake-dpad" role="group" aria-label="Styr slangen"><button type="button" data-snake-direction="3" aria-label="Op">↑</button><button type="button" data-snake-direction="2" aria-label="Venstre">←</button><button type="button" data-snake-direction="1" aria-label="Ned">↓</button><button type="button" data-snake-direction="0" aria-label="Højre">→</button></div>
         <p id="snake-status" role="status" aria-live="polite">Saml gaver, og undgå kanten og din egen hale. 10 point pr. gave.</p>
         <p class="snake-hint">Brug piletaster/WASD, knapperne eller swipe på spillepladen. Spillet pauses, når du forlader det.</p>

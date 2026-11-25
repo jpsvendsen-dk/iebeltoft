@@ -1,11 +1,14 @@
 import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
 import assert from 'node:assert/strict';
+import {fakeAudio} from './snake-audio.mjs';
+import {setImmediate as nextTurn} from 'node:timers/promises';
 
 export async function runSnakeTests() {
   const core=await readFile(new URL('../static/jul2026/snake-core.js',import.meta.url),'utf8');
   const ui=await readFile(new URL('../static/jul2026/snake.js',import.meta.url),'utf8');
   const rendererSource=(await readFile(new URL('../static/jul2026/snake-renderer.js',import.meta.url),'utf8')).replace(/export /g,'');
+  const audioSource=(await readFile(new URL('../static/jul2026/snake-audio.js',import.meta.url),'utf8')).replace(/export /g,'');
   const engineSource=core.replace(/export /g,'');
   const engineContext=vm.createContext({});
   vm.runInContext(engineSource+';globalThis.Game=SnakeGame;',engineContext);
@@ -19,11 +22,13 @@ export async function runSnakeTests() {
 
   function harness(initialProfile=null) {
     const nodes=new Map(),storage=new Map(),calls=[],docEvents={},winEvents={},timers=new Map(),frames=new Map(),headings=[];
-    let clock=0;
+    let clock=0;const audio=fakeAudio();
     let profile=initialProfile?{...initialProfile}:null, seq=0, failSave=false, profileFails=false;
     const context2d=new Proxy({rotate:angle=>headings.push(angle)}, {get:(target,key)=>target[key]??(key.startsWith('create')?()=>({addColorStop(){}}):()=>{}),set:(target,key,value)=>(target[key]=value,true)});
     class Element {
-      constructor(){this.listeners={};this.children=[];this.open=false;this.width=440;this.height=440;this.value='';this.checked=false;this.tagName='DIV';this.dataset={};}
+      constructor(){this.listeners={};this.children=[];this.open=false;this.width=440;this.height=440;this.value='';this.checked=false;this.tagName='DIV';this.dataset={};this.attrs={};}
+      getAttribute(name){return this.attrs[name]??null;}
+      setAttribute(name,value){this.attrs[name]=value;}
       addEventListener(name,fn){(this.listeners[name]??=[]).push(fn);}
       emit(name,event={}){event.target??=this;event.preventDefault??=()=>{};for(const fn of this.listeners[name]||[])fn(event);}
       click(){this.emit('click',{detail:0});}
@@ -40,9 +45,12 @@ export async function runSnakeTests() {
     const get=id=>{if(!nodes.has(id))nodes.set(id,new Element());return nodes.get(id);};
     const dpad=[0,1,2,3].map(direction=>{const node=new Element();node.dataset.snakeDirection=String(direction);return node;});
     get('snake-board').tagName='CANVAS';
+    get('sound').setAttribute('aria-pressed','true');
+    get('sound').addEventListener('click',()=>get('sound').setAttribute('aria-pressed',get('sound').getAttribute('aria-pressed')==='true'?'false':'true'));
     const document={hidden:false,getElementById:get,createElement:()=>new Element(),addEventListener:(name,fn)=>{(docEvents[name]??=[]).push(fn);},dispatchEvent:()=>true};
-    const ctx=vm.createContext({document,window:{devicePixelRatio:2,addEventListener:(name,fn)=>{winEvents[name]=fn;}},performance:{now:()=>clock},requestAnimationFrame:fn=>{frames.set(++seq,fn);return seq;},cancelAnimationFrame:id=>frames.delete(id),Event:class{},localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},crypto:{getRandomValues(array){array[0]=1;}},setTimeout:fn=>{timers.set(++seq,fn);return seq;},clearTimeout:id=>timers.delete(id),
+    const ctx=vm.createContext({document,navigator:{audioSession:{}},window:{AudioContext:audio.AudioContext,devicePixelRatio:2,addEventListener:(name,fn)=>{winEvents[name]=fn;}},performance:{now:()=>clock},requestAnimationFrame:fn=>{frames.set(++seq,fn);return seq;},cancelAnimationFrame:id=>frames.delete(id),Event:class{},localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},crypto:{getRandomValues(array){array[0]=1;}},setTimeout:fn=>{timers.set(++seq,fn);return seq;},clearTimeout:id=>timers.delete(id),
       fetch:(url,options={})=>{
+        audio.order.push('fetch');
         calls.push({url,options});let data,status=200;
         if(url.endsWith('/profile') && !options.method){if(profileFails)throw Error('Offline');data={profile:profile?{...profile}:null};}
         else if(url.endsWith('/profile')){const body=JSON.parse(options.body);assert.equal(body.account_id,profile.account_id);profile={...profile,...body};data={profile:{...profile}};}
@@ -56,10 +64,11 @@ export async function runSnakeTests() {
         return {ok:status===200,status,json:()=>data};
       },
     },{microtaskMode:'afterEvaluate'});
-    vm.runInContext(engineSource+'\n'+rendererSource+'\n'+ui.replace(/^import .*;\s*/gm,''),ctx);
+    vm.runInContext(engineSource+'\n'+rendererSource+'\n'+audioSource+'\n'+ui.replace(/^import .*;\s*/gm,''),ctx);
     const drain=()=>{for(let i=0;i<30;i++)vm.runInContext('',ctx);};
     const emit=(map,name,event={})=>{event.preventDefault??=()=>{};for(const fn of map[name]||[])fn(event);drain();};
-    return {get,calls,storage,dpad,open(){get('snake-open').click();drain();},start(){get('snake-start').click();drain();},drain,
+    return {get,calls,storage,dpad,audio,open(){get('snake-open').click();drain();},start(){get('snake-start').click();drain();},drain,
+      async settle(){for(let i=0;i<3;i++){await nextTurn();drain();}},
       tick(){const next=timers.entries().next().value;if(!next)return false;clock+=160;timers.delete(next[0]);next[1]();drain();return true;},
       frame(ms=16){clock+=ms;const next=frames.entries().next().value;if(!next)return false;frames.delete(next[0]);next[1](clock);drain();return true;},
       renderProbe:()=>JSON.parse(vm.runInContext(`JSON.stringify((()=>{
@@ -75,7 +84,10 @@ export async function runSnakeTests() {
       hidden(){document.hidden=true;emit(docEvents,'visibilitychange');},orient(){winEvents.orientationchange();drain();},
       setProfile:p=>{profile=p;},failSave:value=>{failSave=value;},profileFails:value=>{profileFails=value;},profile:()=>profile};
   }
-  const guest=harness();guest.open();guest.start();
+  const guest=harness();guest.open();guest.audio.order.length=0;guest.start();
+  assert.deepEqual(guest.audio.order.slice(0,3),['resume','warmup','fetch']);
+  await guest.settle();
+  assert.equal(guest.audio.tones.length,10);
   assert.equal(guest.get('snake-board').width,440); // CSS width 220 at device pixel ratio 2.
   assert(guest.frame()); // Rendering runs between simulation ticks.
   guest.key('ArrowLeft'); // Opposite direction must be ignored.
@@ -83,9 +95,15 @@ export async function runSnakeTests() {
   for(let i=0;i<11;i++)guest.tick();
   assert.equal(guest.get('snake-score').textContent,10);
   assert.equal(guest.storage.get('jul2026-snake-guest-best'),'10');
+  assert.equal(guest.audio.tones.length,18); // Start 10 + gift 4 + death 4.
   assert(!guest.calls.some(c=>c.url.endsWith('/rounds')||c.url.endsWith('/finish')));
   assert.deepEqual(guest.renderProbe(),{x:[231,242,253],paused:[231,231,231],reduced:253});
   guest.start();guest.hidden();assert.equal(guest.tick(),false);assert.equal(guest.frame(),false);assert.equal(guest.get('snake-pause').textContent,'Fortsæt');
+  assert(guest.audio.stops.length>=18); // Pausing also stops any scheduled sounds.
+
+  const quiet=harness();quiet.open();quiet.get('snake-sound').click();quiet.start();
+  assert.equal(quiet.audio.contexts.length,0);assert.equal(quiet.get('sound').getAttribute('aria-pressed'),'false');
+  for(let i=0;i<10;i++)quiet.tick();assert.equal(quiet.audio.tones.length,0);assert(!quiet.get('snake-start').hidden);
 
   const fast=harness({account_id:21,best_score:0,display_name:'',is_public:false});fast.open();fast.start();
   fast.key('ArrowUp');fast.key('ArrowLeft'); // Two quick corners before the next simulation step.
