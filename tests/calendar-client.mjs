@@ -128,7 +128,7 @@ export async function runTests() {
     iphone.get('sound-test').listeners.click();iphone.drain();await iphone.settle();
     assert.equal(iphone.audioCalls.filter(s=>s==='creak').length,plays+1);
     assert.equal(iphone.storage.get('jul2026-sound'),'on');
-    for(let day=1;day<=24;day++)assert(iphone.door(day).innerHTML.endsWith(`<span class="door-number" aria-hidden="true">${day}</span>`));
+    for(let day=1;day<=24;day++)assert(iphone.door(day).innerHTML.includes(`<span class="flap"><span class="door-decoration">✧</span><span class="door-number">${day}</span>`));
   }
   const blocked=harness({audioState:'interrupted',audioBlocked:true});blocked.door(1).listeners.click();blocked.drain();await blocked.settle();
   assert(blocked.door(1).classList.contains('opened')); // Failed sound cannot block the door.
