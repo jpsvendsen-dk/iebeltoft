@@ -15,6 +15,51 @@ HEADERS = account_tests.HEADERS
 
 
 class CalendarHistoryTests(unittest.TestCase):
+    def test_profile_table_sorting_names_and_latest_log(self):
+        from app.models import CalendarSnakeEvent, CalendarSnakeProfile
+        with self.Session() as db:
+            people = [CalendarVisitor(email=f'{name}@example.com',early_access=i==1) for i,name in enumerate(('alpha','beta','gamma'))]
+            db.add_all(people);db.flush()
+            ids=[p.id for p in people]
+            db.add_all([CalendarSnakeProfile(visitor_id=ids[0],year=2026,display_name='Zebra'),CalendarSnakeProfile(visitor_id=ids[1],year=2026,display_name='Alf')])
+            for i in range(2):
+                db.add(CalendarLoginEvent(visitor_id=ids[0],year=2026,logged_at=self.now+timedelta(minutes=i)))
+            db.add(CalendarLoginEvent(visitor_id=ids[1],year=2026,logged_at=self.now))
+            db.add(CalendarDoorEvent(visitor_id=ids[1],year=2026,event_id=str(uuid4()),day=1,result='opened',clicked_at=self.now+timedelta(minutes=2)))
+            db.add(CalendarSnakeEvent(id=str(uuid4()),visitor_id=ids[0],year=2026,action='open',clicked_at=self.now+timedelta(minutes=3)))
+            db.add(CalendarSnakeEvent(id=str(uuid4()),visitor_id=ids[1],year=2025,action='open',clicked_at=self.now+timedelta(days=1)))
+            db.commit()
+        admin,_=self.admin()
+        path='/admin/jul2026/indstillinger'
+        expected={'email':ids,'name':[ids[1],ids[0],ids[2]],'login':[ids[2],ids[1],ids[0]],'doors':[ids[0],ids[2],ids[1]],'snake':[ids[1],ids[2],ids[0]],'last_log':[ids[1],ids[0],ids[2]],'early_access':[ids[0],ids[2],ids[1]]}
+        for key,order in expected.items():
+            page=admin.get(path,params={'sort':key})
+            self.assertEqual([p.id for p in page.context['people']],order,key)
+        page=admin.get(path,params={'sort':'last_log','direction':'desc'})
+        self.assertEqual([p.id for p in page.context['people']],[ids[0],ids[1],ids[2]])
+        self.assertEqual(page.context['last_logs'][ids[0]],'08.12.2026 kl. 12:37:56')
+        self.assertIsNone(page.context['last_logs'][ids[2]])
+        self.assertIn('aria-sort="descending"',page.text)
+        self.assertIn('Ingen log',page.text)
+        self.assertEqual(admin.get(path,params={'q':'zEbRa'}).context['total'],1)
+        self.assertEqual(admin.get(path,params={'q':'%'}).context['total'],0)
+        self.assertEqual(admin.get(path,params={'sort':'invalid'}).status_code,422)
+
+    def test_profile_table_sorts_before_pagination_and_keeps_filters(self):
+        from app.models import CalendarSnakeProfile
+        with self.Session() as db:
+            for i in range(52):
+                person=CalendarVisitor(email=f'player{i:02}@example.com');db.add(person);db.flush()
+                db.add(CalendarSnakeProfile(visitor_id=person.id,year=2026,display_name=f'Nisse {51-i:02}'))
+            db.commit()
+        admin,_=self.admin()
+        first=admin.get('/admin/jul2026/indstillinger',params={'q':'player','sort':'name','direction':'desc'})
+        self.assertEqual(first.context['people'][0].email,'player00@example.com')
+        self.assertTrue(first.context['has_next'])
+        self.assertIn('sort=name&amp;direction=desc&amp;page=2',first.text)
+        second=admin.get('/admin/jul2026/indstillinger',params={'q':'player','sort':'name','direction':'desc','page':2})
+        self.assertEqual([p.email for p in second.context['people']],['player50@example.com','player51@example.com'])
+
     def test_snake_history_guest_filter_counts_and_deletion(self):
         from app.models import CalendarSnakeEvent, CalendarSnakeProfile
         person=self.login()

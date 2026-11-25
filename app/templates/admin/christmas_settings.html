@@ -15,19 +15,29 @@
     <button class="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700" type="submit">Tilføj profil</button>
   </form>
 </section>
-<form class="flex flex-wrap gap-3 items-end mb-4" method="get"><label>Søg efter e-mail<input name="q" value="{{ q }}" maxlength="254" class="block border rounded-lg px-3 py-2 mt-1"></label><button class="bg-white border rounded-lg px-4 py-2" type="submit">Søg</button><a class="text-blue-700 underline py-2" href="/admin/jul2026/indstillinger">Vis alle</a></form>
+<form class="flex flex-wrap gap-3 items-end mb-4" method="get"><input type="hidden" name="sort" value="{{ sort }}"><input type="hidden" name="direction" value="{{ direction }}"><label>Søg efter e-mail eller spillernavn<input name="q" value="{{ q }}" maxlength="254" class="block border rounded-lg px-3 py-2 mt-1"></label><button class="bg-white border rounded-lg px-4 py-2" type="submit">Søg</button><a class="text-blue-700 underline py-2" href="/admin/jul2026/indstillinger">Vis alle</a></form>
 <p class="text-gray-600 mb-3">{{ total }} profiler · Side {{ page }}</p>
-<div class="space-y-3">
+<p class="text-gray-600 mb-3">Klik på en kolonneoverskrift for at sortere. Klik igen for at vende rækkefølgen. Seneste log er den nyeste hændelse blandt login, lågetryk og spilklik, vist i dansk tid.</p>
+<div class="overflow-x-auto bg-white rounded-xl shadow-sm">
+<table class="w-full text-sm text-left">
+  <thead class="bg-gray-50"><tr>{% for column in sort_columns %}<th scope="col" aria-sort="{{ column.aria_sort }}" class="px-4 py-3 whitespace-nowrap"><a class="text-blue-700 underline" href="{{ column.url }}">{{ column.label }}{% if column.aria_sort == 'ascending' %} ▲{% elif column.aria_sort == 'descending' %} ▼{% endif %}</a></th>{% endfor %}<th scope="col" class="px-4 py-3">Handlinger</th></tr></thead>
+  <tbody>
 {% for person in people %}
-  <form method="post" action="/admin/jul2026/indstillinger/brugere/{{ person.id }}" class="bg-white rounded-xl shadow-sm p-5 flex flex-wrap items-center gap-5">
-    <input type="hidden" name="csrf" value="{{ csrf }}">
-    <div class="flex-1 min-w-0"><p class="font-semibold break-all">{{ person.email }}</p><div class="flex flex-wrap gap-x-5 gap-y-1 my-2"><a href="/admin/jul2026/historik?kind=login&amp;email={{ person.email|urlencode }}" class="text-blue-700 underline">Login: {{ login_counts.get(person.id,0) }}</a><a href="/admin/jul2026/historik?kind=doors&amp;email={{ person.email|urlencode }}" class="text-blue-700 underline">Lågetryk: {{ door_counts.get(person.id,0) }}</a><a href="/admin/jul2026/historik?kind=snake&amp;email={{ person.email|urlencode }}" class="text-blue-700 underline">Spilklik: {{ snake_counts.get(person.id,0) }}</a></div><a href="/admin/jul2026/indstillinger/brugere/{{ person.id }}/nulstil" class="text-red-700 underline">Nulstil alle låger</a><a href="/admin/jul2026/historik/slet?person_id={{ person.id }}" class="text-red-700 underline ml-4">Slet historik</a></div>
-    <label class="flex gap-3 items-start"><input type="checkbox" name="early_access" value="true" {% if person.early_access %}checked{% endif %} class="mt-1.5 h-4 w-4"><span>Tillad åbning af alle 24 låger før datoen</span></label>
-    <button class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700" type="submit">Gem adgang</button>
-  </form>
-{% else %}<p class="bg-white p-5 rounded-lg">Der er ingen profiler i denne søgning.</p>{% endfor %}
+  <tr class="border-t align-top">
+    <td class="px-4 py-4 font-semibold">{{ person.email }}</td>
+    <td class="px-4 py-4">{{ names.get(person.id) or 'Ikke valgt' }}</td>
+    <td class="px-4 py-4"><a href="/admin/jul2026/historik?kind=login&amp;email={{ person.email|urlencode }}" class="text-blue-700 underline" aria-label="Loginhistorik for {{ person.email }}">{{ login_counts.get(person.id,0) }}</a></td>
+    <td class="px-4 py-4"><a href="/admin/jul2026/historik?kind=doors&amp;email={{ person.email|urlencode }}" class="text-blue-700 underline" aria-label="Lågehistorik for {{ person.email }}">{{ door_counts.get(person.id,0) }}</a></td>
+    <td class="px-4 py-4"><a href="/admin/jul2026/historik?kind=snake&amp;email={{ person.email|urlencode }}" class="text-blue-700 underline" aria-label="Spilhistorik for {{ person.email }}">{{ snake_counts.get(person.id,0) }}</a></td>
+    <td class="px-4 py-4 whitespace-nowrap">{{ last_logs.get(person.id) or 'Ingen log' }}</td>
+    <td class="px-4 py-4"><form method="post" action="/admin/jul2026/indstillinger/brugere/{{ person.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><label class="flex gap-2 items-start mb-2"><input type="checkbox" name="early_access" value="true" {% if person.early_access %}checked{% endif %} class="mt-1 h-4 w-4"><span>Alle 24 låger</span></label><button class="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 whitespace-nowrap" type="submit">Gem adgang</button></form></td>
+    <td class="px-4 py-4"><a href="/admin/jul2026/indstillinger/brugere/{{ person.id }}/nulstil" class="text-red-700 underline block mb-2 whitespace-nowrap">Nulstil alle låger</a><a href="/admin/jul2026/historik/slet?person_id={{ person.id }}" class="text-red-700 underline whitespace-nowrap">Slet historik</a></td>
+  </tr>
+{% else %}<tr><td colspan="8" class="p-5">Der er ingen profiler i denne søgning.</td></tr>{% endfor %}
+  </tbody>
+</table>
 </div>
 <p class="text-gray-600 mt-4">Hvis tidlig adgang fjernes, låses fremtidige låger igen. Historik og allerede åbnede låger bevares. Den besøgende kan opdatere kalenderen for at hente den ændrede adgang.</p>
 <p class="text-gray-600 mt-2">Login tælles fra opdateringen, der indførte loginhistorik. Lågetryk omfatter åbninger, genåbninger og afviste forsøg. Nulstilling af låger sletter ikke historikken eller tællerne.</p>
-<nav class="flex gap-6 mt-6" aria-label="Profilsider">{% if page > 1 %}<a class="text-blue-700 underline" href="?q={{ q|urlencode }}&amp;page={{ page-1 }}">Forrige side</a>{% endif %}{% if has_next %}<a class="text-blue-700 underline" href="?q={{ q|urlencode }}&amp;page={{ page+1 }}">Næste side</a>{% endif %}</nav>
+<nav class="flex gap-6 mt-6" aria-label="Profilsider">{% if page > 1 %}<a class="text-blue-700 underline" href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;direction={{ direction }}&amp;page={{ page-1 }}">Forrige side</a>{% endif %}{% if has_next %}<a class="text-blue-700 underline" href="?q={{ q|urlencode }}&amp;sort={{ sort }}&amp;direction={{ direction }}&amp;page={{ page+1 }}">Næste side</a>{% endif %}</nav>
 {% endblock %}
