@@ -242,7 +242,7 @@
       const el = document.createElement('button'); el.type = 'button'; el.className = `door${available ? ' available' : ''}${seen ? ' opened' : ''}${!state.preview && state.today === `2026-12-${String(day).padStart(2,'0')}` ? ' today' : ''}`;
       el.dataset.day = day; el.setAttribute('aria-label', `${day}. december${seen ? ', allerede åbnet' : available ? ', åbn lågen' : ', låst indtil denne dato'}`);
       el.setAttribute('aria-disabled', String(!available));
-      el.innerHTML = `<span class="door-scene" aria-hidden="true"><span class="door-back">✦</span><span class="flap"><span class="door-decoration">✧</span><span class="door-number">${day}</span><span class="door-status">${available ? '' : lock}</span></span></span>`;
+      el.innerHTML = `<span class="door-scene" aria-hidden="true"><span class="door-back"></span><span class="flap"><span class="door-decoration">✧</span><span class="door-number">${day}</span><span class="door-status">${available ? '' : lock}</span></span></span>`;
       if (seen) { const back = el.querySelector('.door-back'); back.classList.add('has-art'); back.innerHTML = photo(day); }
       el.addEventListener('click', () => openDoor(day, el)); root.append(el);
     });

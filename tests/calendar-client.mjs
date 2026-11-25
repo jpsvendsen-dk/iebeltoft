@@ -122,7 +122,9 @@ export async function runTests() {
   const repeat=clicks.calls.filter(c=>c.url.endsWith('/doors/2/open'));
   assert.notEqual(JSON.parse(repeat[1].options.body).event_id,JSON.parse(repeat[2].options.body).event_id);
 
-  const guest=harness();guest.door(2).listeners.click();guest.drain();assert.deepEqual(JSON.parse(guest.storage.get('jul2026-opened')),[2]);assert(!guest.calls.some(c=>c.url.endsWith('/account/opened')));
+  const guest=harness();
+  for(let day=1;day<=24;day++)assert(guest.door(day).innerHTML.includes('<span class="door-back"></span>')); // No rear star can bleed through Safari's 3D layers.
+  guest.door(2).listeners.click();guest.drain();assert.deepEqual(JSON.parse(guest.storage.get('jul2026-opened')),[2]);assert(!guest.calls.some(c=>c.url.endsWith('/account/opened')));
   const preview=harness({path:'/admin/jul2026'});preview.door(24).listeners.click();preview.drain();assert.deepEqual(JSON.parse(preview.storage.get('jul2026-preview-opened')),[24]);assert(!preview.calls.some(c=>c.url.includes('/account')));assert(preview.get('account-open').hidden);
 
   const media=harness();media.door(2).listeners.click();media.drain();

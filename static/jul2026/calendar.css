@@ -7,6 +7,7 @@
 /* Real depth, a dark door edge, inset frame and hinges. Keep the flap opaque. */
 .flap:before{content:'';position:absolute;top:0;bottom:0;right:-5px;width:5px;background:linear-gradient(90deg,#d3ad6f,#4d2e20);transform:rotateY(90deg);transform-origin:left;backface-visibility:visible}
 .door-back{box-shadow:inset 7px 4px 15px #000a;border:2px solid #62452c}
+.door-back{visibility:hidden}.door.opening .door-back,.door.opened .door-back{visibility:visible}
 .door-status:before,.door-status:after{content:'';position:absolute;left:-3px;width:6px;height:14px;background:linear-gradient(90deg,#4d3826,#d6b477,#59412b);border:1px solid #3f3024;border-radius:2px;transform:translateZ(2px)}
 .door-status:before{bottom:10px}.door-status:after{bottom:70px}
 .door.opened{z-index:2}.door.opening{z-index:5}
