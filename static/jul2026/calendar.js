@@ -10,34 +10,95 @@
   let state = null, sound = true, busy = false, timer, audio, creakBuffer, activeCreak;
   let audioReady = Promise.resolve(false);
   let popupVideoId = null;
+  let videoPlayer = null, videoReady = false, videoGeneration = 0, videoTimer, youtubeApi;
+  function loadYouTubeApi() {
+    if (window.YT && window.YT.Player) return Promise.resolve(window.YT);
+    if (youtubeApi) return youtubeApi;
+    youtubeApi = new Promise((resolve, reject) => {
+      const previous = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => {
+        try { if (previous) previous(); } catch (_) {}
+        resolve(window.YT);
+      };
+      const script = document.createElement('script');
+      script.src = 'https://www.youtube.com/iframe_api'; script.async = true;
+      script.onerror = () => { youtubeApi = null; reject(Error('Videoafspilleren kunne ikke indlæses.')); };
+      document.head.append(script);
+    });
+    return youtubeApi;
+  }
   function showPicture() {
-    $('video-container').replaceChildren();
-    $('video-container').hidden = true;
+    try { if (videoReady && videoPlayer) videoPlayer.pauseVideo(); } catch (_) {}
+    $('video-container').classList.remove('video-visible');
+    $('video-container').setAttribute('aria-hidden', 'true');
+    $('video-container').inert = true;
     $('video-help').hidden = true;
     $('animal-art').hidden = false;
     $('play-inline').setAttribute('aria-pressed', 'false');
-    $('play-inline').textContent = '▶ Afspil video her';
+    if (videoReady) $('play-inline').textContent = '▶ Afspil video her';
   }
-  $('play-inline').addEventListener('click', () => {
-    if (!$('video-container').hidden) { showPicture(); return; }
-    if (!popupVideoId) { notice('Videoen kunne ikke indlæses her. Brug “Åbn på YouTube”.'); return; }
-    stopCreak();
+  function disposeVideo() {
+    videoGeneration++; clearTimeout(videoTimer);
+    try { if (videoPlayer) videoPlayer.destroy(); } catch (_) {}
+    videoPlayer = null; videoReady = false; popupVideoId = null;
+    $('video-container').replaceChildren(); showPicture();
+  }
+  function prepareVideo() {
+    const generation = ++videoGeneration;
+    $('play-inline').disabled = true;
+    $('play-inline').textContent = 'Klargør video …';
+    if (!popupVideoId) { $('play-inline').textContent = 'Brug YouTube-linket'; return; }
+    const failed = () => {
+      if (generation !== videoGeneration) return;
+      videoReady = false; $('play-inline').disabled = true;
+      $('play-inline').textContent = 'Brug YouTube-linket';
+      $('video-help').textContent = 'Videoen kunne ikke klargøres her. Vælg “Åbn på YouTube”.';
+      $('video-help').hidden = false;
+    };
     const frame = document.createElement('iframe');
     frame.title = `${$('song-title').textContent} – ${$('song-artist').textContent}`;
     frame.allow = 'autoplay; encrypted-media; fullscreen; picture-in-picture; web-share';
     frame.allowFullscreen = true;
     frame.referrerPolicy = 'strict-origin-when-cross-origin';
-    frame.src = `https://www.youtube-nocookie.com/embed/${popupVideoId}?autoplay=1&playsinline=1&rel=0&hl=da`;
+    frame.src = `https://www.youtube-nocookie.com/embed/${popupVideoId}?enablejsapi=1&autoplay=0&playsinline=1&rel=0&hl=da&origin=${encodeURIComponent(location.origin)}`;
     $('video-container').replaceChildren();
     $('video-container').append(frame);
-    $('video-container').hidden = false;
+    videoTimer = setTimeout(failed, 12000);
+    loadYouTubeApi().then(YT => {
+      if (generation !== videoGeneration || !$('surprise').open) return;
+      videoPlayer = new YT.Player(frame, {events: {
+        onReady: event => {
+          if (generation !== videoGeneration) return;
+          clearTimeout(videoTimer); videoPlayer = event.target; videoReady = true;
+          $('play-inline').disabled = false; $('play-inline').textContent = '▶ Afspil video her';
+        },
+        onAutoplayBlocked: () => {
+          if (generation !== videoGeneration) return;
+          $('video-help').textContent = 'Tryk på afspilningsknappen i videoen, hvis din browser kræver det. Du kan også vælge “Åbn på YouTube”.';
+          $('video-help').hidden = false;
+        },
+        onError: failed,
+      }});
+    }).catch(failed);
+  }
+  $('play-inline').addEventListener('click', () => {
+    if ($('video-container').classList.contains('video-visible')) { showPicture(); return; }
+    if (!videoReady || !videoPlayer) return;
+    stopCreak();
+    $('video-container').classList.add('video-visible');
+    $('video-container').setAttribute('aria-hidden', 'false');
+    $('video-container').inert = false;
+    $('video-help').textContent = 'Kan videoen ikke afspilles her? Vælg “Åbn på YouTube”.';
     $('video-help').hidden = false;
     $('animal-art').hidden = true;
     $('play-inline').setAttribute('aria-pressed', 'true');
     $('play-inline').textContent = 'Vis billedet';
+    // The ready player's play command runs synchronously in the mobile tap.
+    // Do not await loading or create a new iframe here: Safari loses the gesture.
+    try { videoPlayer.unMute(); videoPlayer.playVideo(); } catch (_) { notice('Brug afspilningsknappen i videoen eller “Åbn på YouTube”.'); }
   });
-  $('surprise').addEventListener('close', () => { showPicture(); popupVideoId = null; });
-  $('surprise').addEventListener('cancel', showPicture);
+  $('surprise').addEventListener('close', disposeVideo);
+  $('surprise').addEventListener('cancel', disposeVideo);
   let opened = new Set();
   let account = null, refreshing = false, syncing = false, syncAgain = false;
   const storageDays = (key) => {
@@ -85,7 +146,10 @@
     $('toast').textContent = message; $('toast').hidden = false;
     clearTimeout(timer); timer = setTimeout(() => { $('toast').hidden = true; }, 4500);
   }
-  function position(day) { return `${((day - 1) % 6) * 20}% ${Math.floor((day - 1) / 6) * (100 / 3)}%`; }
+  function photo(day) {
+    const x = ((day - 1) % 6) * 256, y = Math.floor((day - 1) / 6) * 256;
+    return `<svg class="photo-crop" xmlns="http://www.w3.org/2000/svg" viewBox="${x} ${y} 256 256" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><image href="/static/jul2026/animals-fotorealistisk.png" width="1536" height="1024"/></svg>`;
+  }
   function updateSound() { $('sound').setAttribute('aria-pressed', String(sound)); $('sound-label').textContent = sound ? 'Lyd til' : 'Lyd fra'; }
   function stopCreak() {
     if (!activeCreak) return;
@@ -177,7 +241,7 @@
       el.dataset.day = day; el.setAttribute('aria-label', `${day}. december${seen ? ', allerede åbnet' : available ? ', åbn lågen' : ', låst indtil denne dato'}`);
       el.setAttribute('aria-disabled', String(!available));
       el.innerHTML = `<span class="door-scene" aria-hidden="true"><span class="door-back">✦</span><span class="flap"><span class="door-decoration">✧</span><span class="door-number">${day}</span><span class="door-status">${available ? '' : lock}</span></span></span>`;
-      if (seen) { const back = el.querySelector('.door-back'); back.classList.add('has-art'); back.style.backgroundPosition = position(day); }
+      if (seen) { const back = el.querySelector('.door-back'); back.classList.add('has-art'); back.innerHTML = photo(day); }
       el.addEventListener('click', () => openDoor(day, el)); root.append(el);
     });
     $('preview-note').hidden = !state.preview;
@@ -235,29 +299,31 @@
       const data = await r.json();
       if (!r.ok) { refreshAccess = [401,403,409].includes(r.status); throw Error(typeof data.detail === 'string' ? data.detail : 'Lågen kunne ikke åbnes. Prøv igen.'); }
       if ((account ? account.id : null) !== clickAccountId) throw Error('Dit login er ændret. Opdatér kalenderen, og prøv igen.');
-      const back = el.querySelector('.door-back'); back.classList.add('has-art'); back.style.backgroundPosition = position(day);
+      const back = el.querySelector('.door-back'); back.classList.add('has-art'); back.innerHTML = photo(day);
       const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       await creak();
       el.classList.add('opening');
       await new Promise(resolve => setTimeout(resolve, reducedMotion ? 0 : openingMs));
-      $('animal-art').style.backgroundPosition = position(day); $('animal-art').setAttribute('aria-label', data.animal);
+      $('animal-art').innerHTML = photo(day); $('animal-art').setAttribute('aria-label', data.animal);
+      const bounds = el.getBoundingClientRect();
+      if (bounds.width > 0 && bounds.height > 0) $('surprise-media').style.setProperty('--photo-aspect', `${bounds.width} / ${bounds.height}`);
       $('day-label').textContent = `${day}. DECEMBER · 2026`;
       $('surprise-title').textContent = day === 24 ? 'Rigtig glædelig jul' : 'Et lille juleøjeblik';
       $('animal-caption').textContent = `${data.animal}. ${day === 24 ? 'Her er julens største hit til din juleaften.' : 'En stille stund og en sang, der varmer.'}`;
       $('song-title').textContent = data.title; $('song-artist').textContent = data.artist; $('youtube').href = data.youtube;
-      showPicture();
+      disposeVideo();
       const videoId = new URL(data.youtube).searchParams.get('v');
       popupVideoId = videoId && /^[A-Za-z0-9_-]{11}$/.test(videoId) ? videoId : null;
-      $('play-inline').disabled = !popupVideoId;
       $('surprise').showModal();
+      prepareVideo();
       opened.add(day); rememberOpened();
       el.classList.remove('opening'); el.classList.add('opened'); el.setAttribute('aria-label', `${day}. december, allerede åbnet`); updateCount();
       if (account && !account.opened.includes(day)) account.opened.push(day);
     } catch (error) { el.classList.remove('opening'); notice(error.message || 'Forbindelsen driller. Prøv igen om lidt.'); }
     finally { busy = false; el.disabled = false; if (refreshAccess) void refresh(); }
   }
-  $('surprise-close').onclick = () => { showPicture(); $('surprise').close(); };
-  $('youtube').addEventListener('click', () => { showPicture(); $('surprise').close(); });
+  $('surprise-close').onclick = () => { disposeVideo(); $('surprise').close(); };
+  $('youtube').addEventListener('click', () => { disposeVideo(); $('surprise').close(); });
   $('account-open').onclick = () => { accountDisplay(); $('account-dialog').showModal(); };
   $('account-close').onclick = () => $('account-dialog').close();
   $('login-form').addEventListener('submit', async event => {

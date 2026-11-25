@@ -10,12 +10,12 @@ export async function runTests() {
   new vm.Script(source);
   new vm.Script(await readFile(new URL('../static/jul2026/login.js', import.meta.url), 'utf8'));
 
-  function harness({path='/Jul2026', stored={}, merge=false, account=null, offlineInitial=false, audioState=null, audioBlocked=false}={}) {
+  function harness({path='/Jul2026', stored={}, merge=false, account=null, offlineInitial=false, audioState=null, audioBlocked=false, apiAvailable=true}={}) {
     const nodes=new Map(), storage=new Map(Object.entries(stored)), session=new Map(merge ? [['jul2026-merge-guest','yes']] : []);
-    const calls=[], audioCalls=[], sources=[], audioSession={};
+    const calls=[], audioCalls=[], sources=[], audioSession={}, players=[];
     let current=account, offline=offlineInitial, refresh, dropNextOpen=false;
     class Element {
-      constructor() { this.style={setProperty(){}}; this.dataset={}; this.children=[]; this.classes=new Set(); this.attrs={}; this.listeners={}; this.classList={add:n=>this.classes.add(n),remove:n=>this.classes.delete(n),contains:n=>this.classes.has(n)}; }
+      constructor() { this.style={setProperty(k,v){this[k]=v;}}; this.dataset={}; this.children=[]; this.classes=new Set(); this.attrs={}; this.listeners={}; this.classList={add:n=>this.classes.add(n),remove:n=>this.classes.delete(n),contains:n=>this.classes.has(n)}; }
       set className(value) { this.classes=new Set(value.split(' ')); }
       setAttribute(k,v) { this.attrs[k]=v; }
       toggleAttribute(k,v) { if(v)this.attrs[k]='';else delete this.attrs[k]; }
@@ -23,6 +23,7 @@ export async function runTests() {
       replaceChildren() { this.children=[]; }
       append(el) { this.children.push(el); }
       querySelector() { return this.back??=new Element(); }
+      getBoundingClientRect() { return {width:68,height:86,left:0,top:0,right:68,bottom:86}; }
       showModal() { this.open=true; }
       close() { this.open=false; this.listeners.close?.(); }
     }
@@ -35,11 +36,18 @@ export async function runTests() {
       createBufferSource(){const source={connect(){},disconnect(){},start(){audioCalls.push(this.buffer.duration<.01?'warmup':'creak');},stop(){this.stopped=true;this.onended?.();}};sources.push(source);return source;}
       createBiquadFilter(){return{frequency:{},connect(){},disconnect(){}};}
     }
+    class YouTubePlayer {
+      constructor(frame,options){this.frame=frame;this.events=options.events;this.plays=0;this.pauses=0;players.push(this);}
+      unMute(){this.unmuted=true;}
+      playVideo(){this.plays++;}
+      pauseVideo(){this.pauses++;}
+      destroy(){this.destroyed=true;}
+    }
     const ctx=vm.createContext({
-      document:{getElementById:get,documentElement:new Element(),createElement:()=>new Element(),addEventListener(){}},
-      location:{pathname:path,assign(){}},localStorage:storageApi(storage),sessionStorage:storageApi(session),
+      document:{getElementById:get,documentElement:new Element(),head:get('document-head'),createElement:()=>new Element(),addEventListener(){}},
+      location:{pathname:path,origin:'https://www.iebeltoft.dk',assign(){}},localStorage:storageApi(storage),sessionStorage:storageApi(session),
       crypto:{randomUUID},URL,
-      navigator:{audioSession},window:{AudioContext:audioState?SafariAudio:undefined,matchMedia:()=>({matches:true})},setTimeout:(f,ms)=>{if(ms===0)f();return 1;},clearTimeout(){},setInterval:f=>{refresh=f;},
+      navigator:{audioSession},window:{YT:apiAvailable?{Player:YouTubePlayer}:undefined,AudioContext:audioState?SafariAudio:undefined,matchMedia:()=>({matches:true})},setTimeout:(f,ms)=>{if(ms===0)f();return 1;},clearTimeout(){},setInterval:f=>{refresh=f;},
       fetch:(url,options={})=>{
         audioCalls.push('fetch');
         calls.push({url,options});
@@ -71,7 +79,7 @@ export async function runTests() {
     new vm.Script(source).runInContext(ctx);
     const drain=()=>{for(let i=0;i<20;i++)vm.runInContext('',ctx);};
     drain();
-    return {get,storage,calls,drain,settle:async()=>{for(let i=0;i<4;i++){await nextTurn();drain();}},audioCalls,sources,audioSession,refresh:()=>{refresh();drain();},setAccount:a=>{current=a;},offline:v=>{offline=v;},loseResponse:()=>{dropNextOpen=true;},days:()=>current?.opened,door:day=>get('calendar').children.find(e=>e.dataset.day===day)};
+    return {get,storage,calls,drain,players,readyVideo:()=>{const p=players.at(-1);p.events.onReady({target:p});drain();},settle:async()=>{for(let i=0;i<4;i++){await nextTurn();drain();}},audioCalls,sources,audioSession,refresh:()=>{refresh();drain();},setAccount:a=>{current=a;},offline:v=>{offline=v;},loseResponse:()=>{dropNextOpen=true;},days:()=>current?.opened,door:day=>get('calendar').children.find(e=>e.dataset.day===day)};
   }
 
   const a=harness({stored:{'jul2026-opened':'[1,2]'},merge:true,account:{id:1,email:'a@example.com',opened:[3]}});
@@ -108,28 +116,44 @@ export async function runTests() {
 
   const media=harness();media.door(2).listeners.click();media.drain();
   assert.equal(media.get('animal-art').hidden,false);
-  assert.equal(media.get('video-container').children.length,0); // No third-party player before the choice.
-  media.get('play-inline').listeners.click();
+  assert.equal(media.get('play-inline').disabled,true); // Wait for a ready player, not an autoplay iframe.
   const frame=media.get('video-container').children[0];
-  assert.equal(frame.src,'https://www.youtube-nocookie.com/embed/testVideo02?autoplay=1&playsinline=1&rel=0&hl=da');
+  assert.equal(frame.src,'https://www.youtube-nocookie.com/embed/testVideo02?enablejsapi=1&autoplay=0&playsinline=1&rel=0&hl=da&origin=https%3A%2F%2Fwww.iebeltoft.dk');
   assert.equal(frame.referrerPolicy,'strict-origin-when-cross-origin');
   assert(frame.allow.includes('autoplay') && frame.allowFullscreen);
+  assert.equal(media.players[0].plays,0);
+  media.readyVideo();assert.equal(media.get('play-inline').disabled,false);
+  media.get('play-inline').listeners.click();
+  assert.equal(media.players[0].plays,1); // Synchronous: no await/network between tap and playVideo.
+  assert.equal(media.get('video-container').children[0],frame);
   assert.equal(media.get('animal-art').hidden,true);
   assert.equal(media.get('play-inline').attrs['aria-pressed'],'true');
   media.get('play-inline').listeners.click();
-  assert.equal(media.get('video-container').children.length,0);
+  assert.equal(media.get('video-container').children.length,1);
+  assert.equal(media.players[0].pauses,1);
   assert.equal(media.get('animal-art').hidden,false);
   media.get('play-inline').listeners.click();media.get('surprise-close').onclick();
   assert.equal(media.get('video-container').children.length,0);assert.equal(media.get('surprise').open,false);
+  assert(media.players[0].destroyed);
+  media.players[0].events.onReady({target:media.players[0]}); // A late callback must not revive a closed popup.
   media.door(3).listeners.click();media.drain();
-  assert.equal(media.get('video-container').children.length,0); // Another door starts on its image.
+  assert.equal(media.get('animal-art').hidden,false);assert.equal(media.players[1].plays,0);
+  media.readyVideo();
   media.get('play-inline').listeners.click();assert(media.get('video-container').children[0].src.includes('/testVideo03?'));
+  media.players[1].events.onAutoplayBlocked();assert(media.get('video-help').textContent.includes('browser'));
   media.get('surprise').listeners.cancel();media.get('surprise').close();
   assert.equal(media.get('video-container').children.length,0);
-  media.door(2).listeners.click();media.drain();media.get('play-inline').listeners.click();media.get('youtube').listeners.click();
+  media.door(2).listeners.click();media.drain();media.readyVideo();media.get('play-inline').listeners.click();media.get('youtube').listeners.click();
   assert.equal(media.get('video-container').children.length,0);assert.equal(media.get('surprise').open,false);
   assert.equal(media.get('youtube').href,'https://www.youtube.com/watch?v=testVideo02');
   assert(media.door(2).classList.contains('opened'));
+  assert.equal(media.get('surprise-media').style['--photo-aspect'],'68 / 86');
+  assert.equal(media.get('animal-art').innerHTML,media.door(2).back.innerHTML);
+  assert(media.get('animal-art').innerHTML.includes('viewBox="256 0 256 256" preserveAspectRatio="xMidYMid slice"'));
+  const apiFailure=harness({apiAvailable:false});apiFailure.door(1).listeners.click();apiFailure.drain();
+  apiFailure.get('document-head').children[0].onerror();apiFailure.drain();await apiFailure.settle();
+  assert(apiFailure.get('play-inline').disabled);assert.equal(apiFailure.get('animal-art').hidden,false);
+  assert(apiFailure.get('video-help').textContent.includes('YouTube'));
 
   for(const state of ['suspended','interrupted']){
     const iphone=harness({audioState:state});
@@ -176,5 +200,5 @@ export async function runTests() {
   assert.equal(loginCalls[0].url,'/Jul2026/api/login/consume');
   assert.equal(JSON.parse(loginCalls[0].options.body).token,'a'.repeat(43));
   assert.equal(loginStorage.get('jul2026-merge-guest'),'yes');assert.equal(destination,'/Jul2026');
-  return 'OK: inline video choice, image switch, player cleanup on close/Escape/external link, per-door reset, mobile audio, labels, profile sync and click history.';
+  return 'OK: ready-before-tap YouTube playback, synchronous play command, no autoplay on open, pause/destroy and stale callbacks, blocked-player fallback, identical proportional photo crop, mobile audio and account/history flows.';
 }
