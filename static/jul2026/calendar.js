@@ -8,6 +8,7 @@
   document.documentElement.style.setProperty('--door-opening-duration', `${openingMs}ms`);
   const order = [7,18,3,12,21,6,15,1,23,9,4,17,11,20,8,24,14,2,22,5,16,10,19,13];
   let state = null, sound = true, busy = false, timer, audio, creakBuffer, activeCreak;
+  let audioReady = Promise.resolve(false);
   let opened = new Set();
   let account = null, refreshing = false, syncing = false, syncAgain = false;
   const storageDays = (key) => {
@@ -57,17 +58,42 @@
   }
   function position(day) { return `${((day - 1) % 6) * 20}% ${Math.floor((day - 1) / 6) * (100 / 3)}%`; }
   function updateSound() { $('sound').setAttribute('aria-pressed', String(sound)); $('sound-label').textContent = sound ? 'Lyd til' : 'Lyd fra'; }
-  $('sound').addEventListener('click', () => { sound = !sound; if (!sound && activeCreak) activeCreak.stop(); updateSound(); try { localStorage.setItem('jul2026-sound', sound ? 'on' : 'off'); } catch (_) {} });
+  function stopCreak() {
+    if (!activeCreak) return;
+    try { activeCreak.stop(); } catch (_) {}
+    activeCreak = null;
+  }
+  $('sound').addEventListener('click', () => {
+    sound = !sound;
+    if (sound) prepareAudio(); else stopCreak();
+    updateSound(); try { localStorage.setItem('jul2026-sound', sound ? 'on' : 'off'); } catch (_) {}
+  });
+  $('sound-test').addEventListener('click', () => {
+    if (busy) return;
+    sound = true; updateSound();
+    try { localStorage.setItem('jul2026-sound', 'on'); } catch (_) {}
+    prepareAudio(); void creak();
+  });
   updateSound();
   function prepareAudio() {
-    if (!sound) return;
+    if (!sound) return Promise.resolve(false);
     try {
       const Audio = window.AudioContext || window.webkitAudioContext;
-      if (!Audio) return;
-      audio ||= new Audio();
-      if (audio.state === 'suspended') audio.resume().catch(() => {});
+      if (!Audio) return Promise.resolve(false);
+      // iPhone uses an ambient session by default. Request media playback only
+      // when the visitor has sound enabled and taps a door or a sound control.
+      try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (_) {}
+      if (!audio || audio.state === 'closed') { audio = new Audio(); creakBuffer = null; }
+      // Both resume and the silent warm-up must start inside the original tap,
+      // before fetch/await consumes Safari's transient user activation.
+      const resumed = audio.state === 'running' ? Promise.resolve() : audio.resume();
+      audioReady = Promise.resolve(resumed).then(() => audio.state === 'running', () => false);
+      const warmup = audio.createBufferSource();
+      warmup.buffer = audio.createBuffer(1, 1, audio.sampleRate);
+      warmup.connect(audio.destination); warmup.onended = () => warmup.disconnect(); warmup.start(0);
       if (!creakBuffer) creakBuffer = createCreakBuffer();
-    } catch (_) {}
+    } catch (_) { audioReady = Promise.resolve(false); }
+    return audioReady;
   }
   function createCreakBuffer() {
     // Friction on old hinges: uneven low groans, metallic squeals and dry wood.
@@ -89,22 +115,28 @@
       const squeal = Math.sin(phase * 8 + Math.sin(t * 11) * 1.4) * .10 + Math.sin(phase * 13) * .035;
       const crackle = noise * Math.pow(.5 + .5 * Math.sin(t * 31), 16) * .10;
       const fade = Math.min(1, t / .18) * Math.min(1, (seconds - t) / .55);
-      samples[i] = Math.tanh((groan * stiction + squeal * (.4 + .6 * Math.sin(progress * Math.PI)) + wood * .65 + crackle) * 1.3) * fade * .48;
+      samples[i] = Math.tanh((groan * stiction + squeal * (.4 + .6 * Math.sin(progress * Math.PI)) + wood * .65 + crackle) * 1.3) * fade * .78;
     }
     return buffer;
   }
   async function creak() {
-    if (!sound || !audio) return;
+    if (!sound) return false;
     try {
-      if (audio.state === 'suspended') await audio.resume();
-      if (!sound || audio.state !== 'running') return;
+      const ready = await Promise.race([audioReady, new Promise(resolve => setTimeout(() => resolve(false), 800))]);
+      if (!sound) return false;
+      if (!ready || !audio || audio.state !== 'running') {
+        notice('Tryk på “Prøv lågelyden” for at starte lyden.');
+        return false;
+      }
+      stopCreak();
       const source = audio.createBufferSource(); source.buffer = creakBuffer;
       const filter = audio.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 3400;
       source.connect(filter); filter.connect(audio.destination);
       activeCreak = source;
       source.onended = () => { source.disconnect(); filter.disconnect(); if (activeCreak === source) activeCreak = null; };
       source.start();
-    } catch (_) { /* The calendar also works without browser audio support. */ }
+      return true;
+    } catch (_) { notice('Lyden kunne ikke starte. Prøv knappen “Prøv lågelyden”.'); return false; }
   }
   function updateCount() { $('opened-count').textContent = `${opened.size} af 24 juleøjeblikke åbnet`; }
   function render() {
@@ -115,7 +147,7 @@
       const el = document.createElement('button'); el.type = 'button'; el.className = `door${available ? ' available' : ''}${seen ? ' opened' : ''}${!state.preview && state.today === `2026-12-${String(day).padStart(2,'0')}` ? ' today' : ''}`;
       el.dataset.day = day; el.setAttribute('aria-label', `${day}. december${seen ? ', allerede åbnet' : available ? ', åbn lågen' : ', låst indtil denne dato'}`);
       el.setAttribute('aria-disabled', String(!available));
-      el.innerHTML = `<span class="door-back" aria-hidden="true">✦</span><span class="flap"><span class="door-decoration" aria-hidden="true">✧</span><span class="door-number">${day}</span><span class="door-status">${available ? '' : lock}</span></span>`;
+      el.innerHTML = `<span class="door-scene" aria-hidden="true"><span class="door-back">✦</span><span class="flap"><span class="door-decoration">✧</span><span class="door-status">${available ? '' : lock}</span></span></span><span class="door-number" aria-hidden="true">${day}</span>`;
       if (seen) { const back = el.querySelector('.door-back'); back.classList.add('has-art'); back.style.backgroundPosition = position(day); }
       el.addEventListener('click', () => openDoor(day, el)); root.append(el);
     });
@@ -175,12 +207,10 @@
       if (!r.ok) { refreshAccess = [401,403,409].includes(r.status); throw Error(typeof data.detail === 'string' ? data.detail : 'Lågen kunne ikke åbnes. Prøv igen.'); }
       if ((account ? account.id : null) !== clickAccountId) throw Error('Dit login er ændret. Opdatér kalenderen, og prøv igen.');
       const back = el.querySelector('.door-back'); back.classList.add('has-art'); back.style.backgroundPosition = position(day);
-      if (!opened.has(day)) {
-        const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        if (!reducedMotion) await creak();
-        el.classList.add('opening');
-        await new Promise(resolve => setTimeout(resolve, reducedMotion ? 0 : openingMs));
-      }
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      await creak();
+      el.classList.add('opening');
+      await new Promise(resolve => setTimeout(resolve, reducedMotion ? 0 : openingMs));
       $('animal-art').style.backgroundPosition = position(day); $('animal-art').setAttribute('aria-label', data.animal);
       $('day-label').textContent = `${day}. DECEMBER · 2026`;
       $('surprise-title').textContent = day === 24 ? 'Rigtig glædelig jul' : 'Et lille juleøjeblik';

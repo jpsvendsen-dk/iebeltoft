@@ -3,15 +3,16 @@ import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { setImmediate as nextTurn } from 'node:timers/promises';
 
 export async function runTests() {
   const source = await readFile(new URL('../static/jul2026/calendar.js', import.meta.url), 'utf8');
   new vm.Script(source);
   new vm.Script(await readFile(new URL('../static/jul2026/login.js', import.meta.url), 'utf8'));
 
-  function harness({path='/Jul2026', stored={}, merge=false, account=null, offlineInitial=false}={}) {
+  function harness({path='/Jul2026', stored={}, merge=false, account=null, offlineInitial=false, audioState=null, audioBlocked=false}={}) {
     const nodes=new Map(), storage=new Map(Object.entries(stored)), session=new Map(merge ? [['jul2026-merge-guest','yes']] : []);
-    const calls=[];
+    const calls=[], audioCalls=[], sources=[], audioSession={};
     let current=account, offline=offlineInitial, refresh, dropNextOpen=false;
     class Element {
       constructor() { this.style={setProperty(){}}; this.dataset={}; this.children=[]; this.classes=new Set(); this.attrs={}; this.listeners={}; this.classList={add:n=>this.classes.add(n),remove:n=>this.classes.delete(n),contains:n=>this.classes.has(n)}; }
@@ -27,12 +28,20 @@ export async function runTests() {
     }
     const get=id=>{if(!nodes.has(id))nodes.set(id,new Element());return nodes.get(id);};
     const storageApi=map=>({getItem:k=>map.get(k)??null,setItem:(k,v)=>map.set(k,v),removeItem:k=>map.delete(k)});
+    class SafariAudio {
+      constructor(){this.state=audioState;this.sampleRate=8000;this.destination={};}
+      resume(){audioCalls.push('resume');if(!audioBlocked)this.state='running';return{then:resolve=>resolve()};}
+      createBuffer(_,length,rate){const samples=new Float32Array(length);return{duration:length/rate,getChannelData:()=>samples};}
+      createBufferSource(){const source={connect(){},disconnect(){},start(){audioCalls.push(this.buffer.duration<.01?'warmup':'creak');},stop(){this.stopped=true;this.onended?.();}};sources.push(source);return source;}
+      createBiquadFilter(){return{frequency:{},connect(){},disconnect(){}};}
+    }
     const ctx=vm.createContext({
       document:{getElementById:get,documentElement:new Element(),createElement:()=>new Element(),addEventListener(){}},
       location:{pathname:path,assign(){}},localStorage:storageApi(storage),sessionStorage:storageApi(session),
       crypto:{randomUUID},
-      window:{matchMedia:()=>({matches:true})},setTimeout:(f,ms)=>{if(ms===0)f();return 1;},clearTimeout(){},setInterval:f=>{refresh=f;},
+      navigator:{audioSession},window:{AudioContext:audioState?SafariAudio:undefined,matchMedia:()=>({matches:true})},setTimeout:(f,ms)=>{if(ms===0)f();return 1;},clearTimeout(){},setInterval:f=>{refresh=f;},
       fetch:(url,options={})=>{
+        audioCalls.push('fetch');
         calls.push({url,options});
         let result, ok=true, status=200;
         if(url.endsWith('/state'))result={available:path.startsWith('/admin/')||current?.early_access?24:8,early_access:Boolean(current?.early_access),preview:path.startsWith('/admin/'),today:'2026-12-08'};
@@ -60,9 +69,9 @@ export async function runTests() {
       },
     },{microtaskMode:'afterEvaluate'});
     new vm.Script(source).runInContext(ctx);
-    const drain=()=>{for(let i=0;i<8;i++)vm.runInContext('',ctx);};
+    const drain=()=>{for(let i=0;i<20;i++)vm.runInContext('',ctx);};
     drain();
-    return {get,storage,calls,drain,refresh:()=>{refresh();drain();},setAccount:a=>{current=a;},offline:v=>{offline=v;},loseResponse:()=>{dropNextOpen=true;},days:()=>current?.opened,door:day=>get('calendar').children.find(e=>e.dataset.day===day)};
+    return {get,storage,calls,drain,settle:async()=>{for(let i=0;i<4;i++){await nextTurn();drain();}},audioCalls,sources,audioSession,refresh:()=>{refresh();drain();},setAccount:a=>{current=a;},offline:v=>{offline=v;},loseResponse:()=>{dropNextOpen=true;},days:()=>current?.opened,door:day=>get('calendar').children.find(e=>e.dataset.day===day)};
   }
 
   const a=harness({stored:{'jul2026-opened':'[1,2]'},merge:true,account:{id:1,email:'a@example.com',opened:[3]}});
@@ -97,6 +106,35 @@ export async function runTests() {
   const guest=harness();guest.door(2).listeners.click();guest.drain();assert.deepEqual(JSON.parse(guest.storage.get('jul2026-opened')),[2]);assert(!guest.calls.some(c=>c.url.endsWith('/account/opened')));
   const preview=harness({path:'/admin/jul2026'});preview.door(24).listeners.click();preview.drain();assert.deepEqual(JSON.parse(preview.storage.get('jul2026-preview-opened')),[24]);assert(!preview.calls.some(c=>c.url.includes('/account')));assert(preview.get('account-open').hidden);
 
+  for(const state of ['suspended','interrupted']){
+    const iphone=harness({audioState:state});
+    iphone.audioCalls.length=0;
+    iphone.door(2).listeners.click();
+    assert.deepEqual(iphone.audioCalls.slice(0,3),['resume','warmup','fetch']);
+    iphone.drain(); await iphone.settle();
+    assert.equal(iphone.audioSession.type,'playback');
+    assert(iphone.audioCalls.includes('creak'), JSON.stringify({state,calls:iphone.audioCalls,notice:iphone.get('toast').textContent,buffers:iphone.sources.map(s=>s.buffer?.duration)})); // Reduced motion must not mute audio.
+    const recording=iphone.sources.find(s=>s.buffer.duration>1);
+    assert.equal(recording.buffer.duration,4.8);
+    const samples=recording.buffer.getChannelData(0);
+    assert(samples.every(Number.isFinite));assert(Math.max(...samples)<1);assert(Math.max(...samples)>.2);
+    iphone.door(2).listeners.click();iphone.drain();await iphone.settle();
+    assert.equal(iphone.sources.filter(s=>s.buffer.duration>1).length,2); // Reopened doors also creak.
+    assert(recording.stopped);
+    iphone.get('sound').listeners.click();
+    const plays=iphone.audioCalls.filter(s=>s==='creak').length;
+    iphone.door(3).listeners.click();iphone.drain();await iphone.settle();
+    assert.equal(iphone.audioCalls.filter(s=>s==='creak').length,plays);
+    iphone.get('sound-test').listeners.click();iphone.drain();await iphone.settle();
+    assert.equal(iphone.audioCalls.filter(s=>s==='creak').length,plays+1);
+    assert.equal(iphone.storage.get('jul2026-sound'),'on');
+    for(let day=1;day<=24;day++)assert(iphone.door(day).innerHTML.endsWith(`<span class="door-number" aria-hidden="true">${day}</span>`));
+  }
+  const blocked=harness({audioState:'interrupted',audioBlocked:true});blocked.door(1).listeners.click();blocked.drain();await blocked.settle();
+  assert(blocked.door(1).classList.contains('opened')); // Failed sound cannot block the door.
+  assert.equal(blocked.sources.filter(s=>s.buffer.duration>1).length,0);
+  assert(blocked.get('toast').textContent.includes('lågelyden'));
+
   const loginSource=await readFile(new URL('../static/jul2026/login.js', import.meta.url),'utf8');
   const loginButton={addEventListener(_,fn){this.click=fn;}}, loginStatus={}, loginCalls=[];
   let cleaned=false, destination;
@@ -113,5 +151,5 @@ export async function runTests() {
   assert.equal(loginCalls[0].url,'/Jul2026/api/login/consume');
   assert.equal(JSON.parse(loginCalls[0].options.body).token,'a'.repeat(43));
   assert.equal(loginStorage.get('jul2026-merge-guest'),'yes');assert.equal(destination,'/Jul2026');
-  return 'OK: profile sync, offline retry, every door click uses POST, locked attempts, unique click IDs, safe retries, early access, revocation preserving progress, login confirmation and isolated preview.';
+  return 'OK: profile sync, click history, access rules, mobile day labels, Safari tap unlock, interrupted audio recovery, audible reopens with reduced motion, mute/test controls and blocked audio fallback.';
 }
