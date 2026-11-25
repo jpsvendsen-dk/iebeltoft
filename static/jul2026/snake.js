@@ -9,6 +9,7 @@ import {SnakeAudio} from './snake-audio.js?v=2';
   let game = null, round = null, turns = [], directionQueue = [], timer;
   let phase = 'idle', profile = null, loaded = false, loading = false, saving = false, pending = false, failedSave = false;
   let loadGeneration = 0, guestBest = 0;
+  let preferencesDirty=false, preferencesTimer, preferencesPromise=null, leaderboardGeneration=0;
   try { guestBest = Math.max(0,Math.min(200000,Number(localStorage.getItem('jul2026-snake-guest-best'))||0)); } catch (_) {}
   const message = text => { $('snake-status').textContent = text; };
   const identity = value => value?.account_id ?? null;
@@ -17,7 +18,7 @@ import {SnakeAudio} from './snake-audio.js?v=2';
     try{await request('/events',body);}catch(_){try{await request('/events',body);}catch(_){/* Logging must not block the game. */}}
   }
   async function request(path, body) {
-    const response = await fetch(api+path, body === undefined ? {cache:'no-store'} : {method:'POST',headers:{'Content-Type':'application/json','X-Calendar-Request':'1'},body:JSON.stringify(body)});
+    const response = await fetch(api+path, body === undefined ? {cache:'no-store'} : {method:'POST',headers:{'Content-Type':'application/json','X-Calendar-Request':'1'},body:JSON.stringify(body),keepalive:path==='/profile'});
     const data = await response.json();
     if (!response.ok) throw Error(typeof data.detail === 'string' ? data.detail : 'Forbindelsen driller. Prøv igen.');
     return data;
@@ -42,15 +43,17 @@ import {SnakeAudio} from './snake-audio.js?v=2';
     $('snake-settings').hidden = !profile;
     $('snake-login').hidden = Boolean(profile);
     $('snake-profile-note').textContent = profile ? 'Din rekord gemmes på kalenderprofilen på tværs af enheder.' : 'Gæstespil · Rekorden gemmes kun i denne browser. Log ind for at gemme på din profil.';
+    $('snake-player-note').textContent=profile?.display_name?`Du spiller som ${profile.display_name}`:profile?'Du er logget ind · Vælg dit spillernavn under “Julens top 10”.':'Du spiller som gæst';
+    $('snake-membership').textContent=!profile?'Log ind for at gemme dit spillernavn og deltage.':!profile.is_public?'Din rekord er privat. Tilmeld dig nedenfor, hvis den skal vises på toplisten.':profile.best_score===0?`Du er tilmeldt som ${profile.display_name}. Afslut et spil med point for at komme med på listen.`:`Du deltager som ${profile.display_name} · Din rekord er ${profile.best_score} point.`;
   }
   function draw() { renderer.update(game || preview, phase); }
   async function leaderboard() {
-    const list=$('snake-toplist');
+    const list=$('snake-toplist'),generation=++leaderboardGeneration;
     try {
-      const data=await request('/leaderboard');list.replaceChildren();
+      const data=await request('/leaderboard');if(generation!==leaderboardGeneration)return;list.replaceChildren();
       for(const player of data.players){const row=document.createElement('li'),name=document.createElement('span'),score=document.createElement('strong');name.textContent=`${player.rank}. ${player.name}`;score.textContent=`${player.score} point`;row.append(name,score);list.append(row);}
-      if(!data.players.length){const row=document.createElement('li');row.textContent='Her er plads til julens første rekord.';list.append(row);}
-    } catch (_) {list.textContent='Toplisten kunne ikke hentes. Åbn spillet igen for at prøve på ny.';}
+      if(!data.players.length){const row=document.createElement('li');row.textContent='Ingen spillere har endnu tilmeldt en rekord. Du kan tilmelde dig nedenfor.';list.append(row);}
+    } catch (_) {if(generation===leaderboardGeneration)list.textContent='Toplisten kunne ikke hentes. Tryk “Opdatér topliste” for at prøve igen.';}
   }
   async function loadProfile() {
     const generation=++loadGeneration;loading=true;controls();
@@ -60,8 +63,10 @@ import {SnakeAudio} from './snake-audio.js?v=2';
         clearTimeout(timer);game=null;round=null;turns=[];directionQueue=[];phase='idle';pending=failedSave=false;
         message('Dit login er ændret. Start et nyt spil på den aktuelle profil.');
       }
+      const changed=identity(profile)!==identity(data.profile);
       profile=data.profile;loaded=true;
-      $('snake-name').value=profile?.display_name||'';$('snake-public').checked=Boolean(profile?.is_public);
+      if(changed){preferencesDirty=false;clearTimeout(preferencesTimer);}
+      if(!preferencesDirty){$('snake-name').value=profile?.display_name||'';$('snake-public').checked=Boolean(profile?.is_public);$('snake-preferences-status').textContent=profile?.display_name?'Spillernavnet er gemt på din profil.':'';$('snake-preferences-status').removeAttribute('data-error');}
       if(!game)message('Du har 2 liv. Saml gaver, og få ét ekstra liv, når du kommer over 500 point.');
     } catch(error){loaded=false;message(error.message||'Din profil kunne ikke hentes. Prøv igen.');}
     finally{if(generation===loadGeneration){loading=false;controls();draw();}}
@@ -74,7 +79,7 @@ import {SnakeAudio} from './snake-audio.js?v=2';
     try {
       const data=await request(`/rounds/${submission.round_id}/finish`,{account_id:submission.account_id,ticks:game.tick,turns});
       if(round!==submission)return;
-      profile=data.profile;pending=false;message(`Gemt på profilen · Din rekord er ${profile.best_score} point.`);void leaderboard();
+      profile={...profile,best_score:Math.max(profile?.best_score||0,data.profile.best_score)};pending=false;message(`Gemt på profilen · Din rekord er ${profile.best_score} point.`);void leaderboard();
     } catch(error){if(round===submission){failedSave=true;message(`${error.message||'Resultatet kunne ikke gemmes.'} Behold siden åben, og prøv at gemme igen.`);}}
     finally{saving=false;controls();}
   }
@@ -107,8 +112,10 @@ import {SnakeAudio} from './snake-audio.js?v=2';
     sounds.stop();void sounds.unlock();
     loading=true;controls();
     try {
+      if(!await savePreferences())throw Error('Spillernavnet kunne ikke gemmes. Se beskeden under “Julens top 10”.');
       const data=await request('/profile');
       profile=data.profile;
+      if(!preferencesDirty){$('snake-name').value=profile?.display_name||'';$('snake-public').checked=Boolean(profile?.is_public);}
       let seed;
       if(profile){const started=await request('/rounds',{account_id:profile.account_id,rules_version:3});round={...started,account_id:profile.account_id};seed=started.seed;}
       else{round=null;const random=new Uint32Array(1);crypto.getRandomValues(random);seed=random[0]||1;}
@@ -130,10 +137,10 @@ import {SnakeAudio} from './snake-audio.js?v=2';
   $('snake-open').addEventListener('click',()=>{
     if(!document.dispatchEvent(new Event('jul2026:snake-open',{cancelable:true})))return;
     void logClick('open');
-    dialog.showModal();pause();void loadProfile();void leaderboard();
+    dialog.showModal();showView('play',false);pause();void loadProfile();void leaderboard();
   });
   $('snake-close').addEventListener('click',()=>dialog.close());
-  dialog.addEventListener('close',()=>{pause();});dialog.addEventListener('cancel',pause);
+  dialog.addEventListener('close',()=>{pause();void savePreferences();});dialog.addEventListener('cancel',pause);
   dialog.addEventListener('click',event=>{if(event.target===dialog){const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close();}});
   document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});
   window.addEventListener('orientationchange',pause);
@@ -158,11 +165,34 @@ import {SnakeAudio} from './snake-audio.js?v=2';
   canvas.addEventListener('pointerdown',event=>{pointer=[event.clientX,event.clientY];canvas.setPointerCapture(event.pointerId);});
   canvas.addEventListener('pointermove',event=>{if(!pointer)return;const dx=event.clientX-pointer[0],dy=event.clientY-pointer[1];if(Math.max(Math.abs(dx),Math.abs(dy))<14)return;turn(Math.abs(dx)>Math.abs(dy)?dx>0?0:2:dy>0?1:3);pointer=[event.clientX,event.clientY];});
   for(const name of ['pointerup','pointercancel'])canvas.addEventListener(name,()=>{pointer=null;});
-  $('snake-preferences').addEventListener('submit',async event=>{
-    event.preventDefault();if(!profile || loading || saving)return;pause();loading=true;controls();$('snake-settings-save').disabled=true;
-    try{const data=await request('/profile',{account_id:profile.account_id,display_name:$('snake-name').value,is_public:$('snake-public').checked});profile=data.profile;$('snake-name').value=profile.display_name;message(profile.is_public?'Du deltager nu på toplisten med dit spillernavn.':'Din rekord er privat. Du vises ikke på toplisten.');void leaderboard();}
-    catch(error){message(error.message||'Indstillingen kunne ikke gemmes.');}
-    finally{loading=false;$('snake-settings-save').disabled=false;controls();}
-  });
+  async function savePreferences() {
+    clearTimeout(preferencesTimer);
+    if(!profile||!preferencesDirty)return true;
+    if(preferencesPromise){const success=await preferencesPromise;return success&&preferencesDirty?savePreferences():success;}
+    const accountId=profile.account_id,name=$('snake-name').value,isPublic=$('snake-public').checked,status=$('snake-preferences-status');
+    status.textContent='Gemmer på din profil …';status.removeAttribute('data-error');$('snake-settings-save').disabled=true;
+    preferencesPromise=(async()=>{
+      try{
+        const data=await request('/profile',{account_id:accountId,display_name:name,is_public:isPublic});
+        if(identity(profile)!==accountId)return false;
+        profile={...data.profile,best_score:Math.max(profile.best_score,data.profile.best_score)};
+        if($('snake-name').value===name&&$('snake-public').checked===isPublic){preferencesDirty=false;$('snake-name').value=profile.display_name;status.textContent='Gemt på din profil. Navnet huskes næste gang.';}
+        void leaderboard();return true;
+      }catch(error){if(identity(profile)===accountId){status.textContent=error.message||'Kunne ikke gemme. Prøv Gem indstillinger igen.';status.setAttribute('data-error','');}return false;}
+      finally{preferencesPromise=null;$('snake-settings-save').disabled=false;controls();}
+    })();
+    return preferencesPromise;
+  }
+  $('snake-name').addEventListener('input',()=>{preferencesDirty=true;$('snake-preferences-status').textContent='Ikke gemt endnu …';clearTimeout(preferencesTimer);preferencesTimer=setTimeout(()=>void savePreferences(),600);});
+  $('snake-name').addEventListener('change',()=>{preferencesDirty=true;void savePreferences();});
+  $('snake-public').addEventListener('change',()=>{preferencesDirty=true;void savePreferences();});
+  $('snake-preferences').addEventListener('submit',event=>{event.preventDefault();preferencesDirty=true;pause();void savePreferences();});
+  function showView(view,save=true){
+    if(view==='top'){pause();void leaderboard();}else if(save)void savePreferences();
+    $('snake-layout').dataset.view=view;$('snake-view-play').setAttribute('aria-pressed',String(view==='play'));$('snake-view-top').setAttribute('aria-pressed',String(view==='top'));dialog.scrollTop=0;
+  }
+  $('snake-view-play').addEventListener('click',()=>showView('play'));
+  $('snake-view-top').addEventListener('click',()=>showView('top'));
+  $('snake-top-refresh').addEventListener('click',leaderboard);
   controls();draw();
 })();

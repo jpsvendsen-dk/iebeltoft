@@ -126,6 +126,17 @@ class SnakeRulesTests(unittest.TestCase):
 
 
 class SnakeApiTests(unittest.TestCase):
+    def test_player_name_survives_another_device_and_score_save(self):
+        person=self.login()
+        self.assertEqual(self.preferences(person,'Juleven',False).status_code,200)
+        round=self.start(person);self.now+=timedelta(seconds=3)
+        self.finish(person,round)
+        second=self.device();self.now+=timedelta(minutes=2);self.login(client=second)
+        profile=second.get(ROOT+'/profile').json()['profile']
+        self.assertEqual((profile['display_name'],profile['best_score'],profile['is_public']),('Juleven',10,False))
+        self.assertEqual(self.preferences(person,'Juleven',True,second).status_code,200)
+        self.assertEqual(self.client.get(ROOT+'/leaderboard').json()['players'][0]['name'],'Juleven')
+
     device=account_tests.CalendarAccountTests.device
     request_link=account_tests.CalendarAccountTests.request_link
     login=account_tests.CalendarAccountTests.login

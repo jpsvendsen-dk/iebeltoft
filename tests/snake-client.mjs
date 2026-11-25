@@ -39,12 +39,13 @@ export async function runSnakeTests() {
   function harness(initialProfile=null) {
     const nodes=new Map(),storage=new Map(),calls=[],docEvents={},winEvents={},timers=new Map(),frames=new Map(),headings=[];
     let clock=0;const audio=fakeAudio();
-    let profile=initialProfile?{...initialProfile}:null, seq=0, failSave=false, profileFails=false;
+    let profile=initialProfile?{...initialProfile}:null, seq=0, failSave=false, profileFails=false, preferencesFail=false;
     const context2d=new Proxy({rotate:angle=>headings.push(angle)}, {get:(target,key)=>target[key]??(key.startsWith('create')?()=>({addColorStop(){}}):()=>{}),set:(target,key,value)=>(target[key]=value,true)});
     class Element {
       constructor(){this.listeners={};this.children=[];this.open=false;this.width=440;this.height=440;this.value='';this.checked=false;this.tagName='DIV';this.dataset={};this.attrs={};}
       getAttribute(name){return this.attrs[name]??null;}
       setAttribute(name,value){this.attrs[name]=value;}
+      removeAttribute(name){delete this.attrs[name];}
       addEventListener(name,fn){(this.listeners[name]??=[]).push(fn);}
       emit(name,event={}){event.target??=this;event.preventDefault??=()=>{};for(const fn of this.listeners[name]||[])fn(event);}
       click(){this.emit('click',{detail:0});}
@@ -70,7 +71,7 @@ export async function runSnakeTests() {
         calls.push({url,options});let data,status=200;
         if(url.endsWith('/events'))data={ok:true};
         else if(url.endsWith('/profile') && !options.method){if(profileFails)throw Error('Offline');data={profile:profile?{...profile}:null};}
-        else if(url.endsWith('/profile')){const body=JSON.parse(options.body);assert.equal(body.account_id,profile.account_id);profile={...profile,...body};data={profile:{...profile}};}
+        else if(url.endsWith('/profile')){if(preferencesFail)throw Error('Navnet kunne ikke gemmes');const body=JSON.parse(options.body);assert.equal(body.account_id,profile.account_id);profile={...profile,...body};data={profile:{...profile}};}
         else if(url.endsWith('/leaderboard'))data={players:profile?.is_public?[{rank:1,name:profile.display_name,score:profile.best_score}]:[]};
         else if(url.endsWith('/rounds')){assert.equal(JSON.parse(options.body).account_id,profile.account_id);assert.equal(JSON.parse(options.body).rules_version,3);data={seed:1,round_id:'test-round',max_ticks:20000,rules_version:3};}
         else if(url.endsWith('/finish')){
@@ -99,7 +100,7 @@ export async function runSnakeTests() {
       heading:()=>headings.at(-1),
       key(key,target=get('snake-board'),options={}){emit(docEvents,'keydown',{key,target,...options});},
       hidden(){document.hidden=true;emit(docEvents,'visibilitychange');},orient(){winEvents.orientationchange();drain();},
-      setProfile:p=>{profile=p;},failSave:value=>{failSave=value;},profileFails:value=>{profileFails=value;},profile:()=>profile};
+      setProfile:p=>{profile=p;},failSave:value=>{failSave=value;},profileFails:value=>{profileFails=value;},preferencesFail:value=>{preferencesFail=value;},profile:()=>profile};
   }
   const guest=harness();guest.open();guest.audio.order.length=0;guest.start();
   assert.deepEqual(guest.audio.order.slice(0,3),['resume','warmup','fetch']);
@@ -156,6 +157,8 @@ export async function runSnakeTests() {
   const finishes=user.calls.filter(c=>c.url.endsWith('/finish'));assert.equal(finishes.length,2);assert.equal(finishes[0].options.body,finishes[1].options.body);
   user.get('snake-name').value='Nisse';user.get('snake-public').checked=true;user.get('snake-preferences').emit('submit');user.drain();assert(user.profile().is_public);
   assert.equal(user.get('snake-toplist').children[0].children[0].textContent,'1. Nisse');
+  user.get('snake-dialog').close();user.open();assert.equal(user.get('snake-name').value,'Nisse');
+  assert(user.get('snake-player-note').textContent.includes('Nisse'));
   user.start();user.get('snake-board').emit('pointerdown',{clientX:50,clientY:50,pointerId:1});
   user.get('snake-board').emit('pointermove',{clientX:50,clientY:20});user.tick();
   user.orient();assert.equal(user.tick(),false);
@@ -163,5 +166,22 @@ export async function runSnakeTests() {
   user.setProfile({account_id:6,best_score:20,display_name:'Anden',is_public:false});user.get('snake-dialog').close();user.open();
   assert.equal(user.get('snake-score').textContent,0);assert.equal(user.get('snake-best').textContent,20);assert(!user.get('snake-start').hidden);
   user.profileFails(true);user.get('snake-dialog').close();user.open();assert(user.get('snake-start').disabled);assert.equal(user.get('snake-reload').hidden,false);
+
+  const nameSave=harness({account_id:31,best_score:0,display_name:'',is_public:false});nameSave.open();nameSave.get('snake-view-top').click();nameSave.drain();
+  assert.equal(nameSave.get('snake-layout').dataset.view,'top');
+  nameSave.get('snake-name').value='Juleven';nameSave.get('snake-name').emit('input');nameSave.tick();
+  assert.equal(nameSave.profile().display_name,'Juleven');assert.equal(nameSave.profile().is_public,false);
+  assert(nameSave.get('snake-preferences-status').textContent.includes('Gemt'));
+  nameSave.get('snake-dialog').close();nameSave.open();assert.equal(nameSave.get('snake-name').value,'Juleven');
+  assert.equal(nameSave.get('snake-layout').dataset.view,'play');
+  nameSave.get('snake-view-top').click();nameSave.get('snake-public').checked=true;nameSave.get('snake-public').emit('change');nameSave.drain();
+  assert.equal(nameSave.profile().is_public,true);
+  assert(nameSave.get('snake-membership').textContent.includes('Afslut et spil med point'));
+  nameSave.get('snake-name').value='Ny Nisse';nameSave.get('snake-name').emit('input');nameSave.get('snake-view-play').click();nameSave.drain();
+  assert.equal(nameSave.profile().display_name,'Ny Nisse');
+  nameSave.preferencesFail(true);nameSave.get('snake-name').value='Nyt navn';nameSave.get('snake-name').emit('change');nameSave.drain();
+  assert.equal(nameSave.profile().display_name,'Ny Nisse');assert.equal(nameSave.get('snake-preferences-status').getAttribute('data-error'),'');
+  nameSave.preferencesFail(false);nameSave.get('snake-preferences').emit('submit');nameSave.drain();assert.equal(nameSave.profile().display_name,'Nyt navn');
+  const savedRequests=nameSave.calls.filter(c=>c.url.endsWith('/profile')&&c.options.method==='POST');assert(savedRequests.every(c=>c.options.keepalive===true));
   return 'OK: deterministic replay, gift collection, direction controls/swipe, pause/visibility/orientation, guest storage, server-only profile records, opt-in leaderboard, retry and account switching.';
 }
