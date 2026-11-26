@@ -26,7 +26,7 @@
   <meta name="twitter:image:alt" content="Et hyggeligt snedækket torv med juletræ og varme julelys.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='85'%3E🎄%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="/static/jul2026/calendar.css?v=17">
-  <link rel="stylesheet" href="/static/jul2026/snake.css?v=8">
+  <link rel="stylesheet" href="/static/jul2026/snake.css?v=9">
   <script src="/static/jul2026/calendar.js?v=16" defer></script>
   <script src="/static/jul2026/cursor-snow.js?v=1" defer></script>
   <script type="module" src="/static/jul2026/snake.js?v=8"></script>
@@ -58,8 +58,10 @@
   <div id="toast" role="status" class="toast" hidden></div>
   <dialog id="snake-dialog" aria-labelledby="snake-title">
     <button class="close" id="snake-close" type="button" aria-label="Luk spillet">×</button>
+    <div class="snake-topline">
     <header class="snake-heading"><p class="eyebrow">EN LILLE JULEPAUSE</p><h2 id="snake-title">Jule-Snake</h2></header>
     <nav class="snake-navigation" aria-label="Spil og topliste"><button id="snake-view-play" type="button" aria-pressed="true">Spil</button><button id="snake-view-top" type="button" aria-pressed="false">Julens top 10</button></nav>
+    </div>
     <p id="snake-player-note" class="snake-hint"></p>
     <div class="snake-layout" id="snake-layout" data-view="play">
       <section class="snake-play" aria-label="Spilleområde">
