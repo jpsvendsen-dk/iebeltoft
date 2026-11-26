@@ -154,7 +154,7 @@
   }
   function photo(day) {
     const x = ((day - 1) % 6) * 256, y = Math.floor((day - 1) / 6) * 256;
-    return `<svg class="photo-crop" xmlns="http://www.w3.org/2000/svg" viewBox="${x} ${y} 256 256" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><image href="/static/jul2026/animals-fotorealistisk.png" width="1536" height="1024"/></svg>`;
+    return `<svg class="photo-crop" xmlns="http://www.w3.org/2000/svg" viewBox="${x} ${y} 256 256" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><image href="/static/jul2026/animals-fotorealistisk.webp?v=1" width="1536" height="1024"/></svg>`;
   }
   function updateSound() { $('sound').setAttribute('aria-pressed', String(sound)); $('sound-label').textContent = sound ? 'Lyd til' : 'Lyd fra'; }
   function stopCreak() {

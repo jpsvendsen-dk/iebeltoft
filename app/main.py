@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
+from app.services.static_assets import CalendarStaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import text
 from app.database import engine, Base
@@ -43,7 +43,7 @@ app = FastAPI(title="iebeltoft.dk — Sommerhus Udlejning", docs_url=None, redoc
 
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "dev-secret-skift-mig"))
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", CalendarStaticFiles(directory="static"), name="static")
 
 app.include_router(public.router)
 app.include_router(admin.router)
