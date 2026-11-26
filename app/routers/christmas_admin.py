@@ -45,7 +45,7 @@ def verify_admin_form(request, token):
 
 
 @router.get("/indstillinger")
-def settings(request: Request, q: str = Query(default="", max_length=254), page: int = Query(default=1, ge=1), sort: str = Query(default="email", pattern="^(email|name|login|doors|snake|last_log|early_access)$"), direction: str = Query(default="asc", pattern="^(asc|desc)$"), db: Session = Depends(get_db)):
+def settings(request: Request, q: str = Query(default="", max_length=254), page: int = Query(default=1, ge=1), sort: str = Query(default="email", pattern="^(email|name|score|opened|login|doors|snake|last_log|early_access)$"), direction: str = Query(default="asc", pattern="^(asc|desc)$"), db: Session = Depends(get_db)):
     redirect = kræv_login(request)
     if redirect:
         return redirect
@@ -56,27 +56,31 @@ def settings(request: Request, q: str = Query(default="", max_length=254), page:
         stats[key] = select(model.visitor_id.label("visitor_id"), func.count().label("count")).where(model.year == YEAR).group_by(model.visitor_id).subquery()
         logs.append(select(model.visitor_id.label("visitor_id"), stamp.label("stamp")).where(model.year == YEAR))
     all_logs = union_all(*logs).subquery()
+    stats["opened"] = select(CalendarOpenedDoor.visitor_id.label("visitor_id"), func.count().label("count")).where(CalendarOpenedDoor.year == YEAR).group_by(CalendarOpenedDoor.visitor_id).subquery()
     latest = select(all_logs.c.visitor_id, func.max(all_logs.c.stamp).label("last_log")).group_by(all_logs.c.visitor_id).subquery()
     query = select(CalendarVisitor, CalendarSnakeProfile.display_name, latest.c.last_log).outerjoin(CalendarSnakeProfile, (CalendarSnakeProfile.visitor_id == CalendarVisitor.id) & (CalendarSnakeProfile.year == YEAR)).outerjoin(latest, latest.c.visitor_id == CalendarVisitor.id)
     for stat in stats.values():
         query = query.outerjoin(stat, stat.c.visitor_id == CalendarVisitor.id)
+    query = query.add_columns(func.coalesce(CalendarSnakeProfile.best_score, 0), func.coalesce(stats["opened"].c.count, 0))
     condition = or_(CalendarVisitor.email.contains(q, autoescape=True), func.lower(CalendarSnakeProfile.display_name).contains(q, autoescape=True))
     query = query.where(condition)
     count = db.scalar(select(func.count()).select_from(query.subquery()))
-    columns = {"email": func.lower(CalendarVisitor.email), "name": func.lower(CalendarSnakeProfile.display_name), "last_log": latest.c.last_log, "early_access": CalendarVisitor.early_access, **{key: func.coalesce(stat.c.count, 0) for key, stat in stats.items()}}
+    columns = {"email": func.lower(CalendarVisitor.email), "name": func.lower(CalendarSnakeProfile.display_name), "score": func.coalesce(CalendarSnakeProfile.best_score, 0), "last_log": latest.c.last_log, "early_access": CalendarVisitor.early_access, **{key: func.coalesce(stat.c.count, 0) for key, stat in stats.items()}}
     column = columns[sort]
     order = (column.desc() if direction == "desc" else column.asc()).nulls_last()
     rows = db.execute(query.order_by(order, CalendarVisitor.email, CalendarVisitor.id).offset((page - 1) * PAGE_SIZE).limit(PAGE_SIZE)).all()
     people = [row[0] for row in rows]
-    names = {person.id: name for person, name, stamp in rows}
-    last_logs = {person.id: stamp.replace(tzinfo=timezone.utc).astimezone(TZ).strftime("%d.%m.%Y kl. %H:%M:%S") if stamp else None for person, name, stamp in rows}
-    sort_columns = [{"key": key, "label": label, "url": "?" + urlencode({"q": q, "sort": key, "direction": "desc" if sort == key and direction == "asc" else "asc"}), "aria_sort": ("ascending" if direction == "asc" else "descending") if sort == key else "none"} for key, label in (("email", "E-mail"), ("name", "Spillernavn"), ("login", "Login"), ("doors", "Lågetryk"), ("snake", "Spilklik"), ("last_log", "Seneste log"), ("early_access", "Tidlig adgang"))]
+    names = {person.id: name for person, name, stamp, score, opened in rows}
+    best_scores = {person.id: score for person, name, stamp, score, opened in rows}
+    opened_counts = {person.id: opened for person, name, stamp, score, opened in rows}
+    last_logs = {person.id: stamp.replace(tzinfo=timezone.utc).astimezone(TZ).strftime("%d.%m.%Y kl. %H:%M:%S") if stamp else None for person, name, stamp, score, opened in rows}
+    sort_columns = [{"key": key, "label": label, "url": "?" + urlencode({"q": q, "sort": key, "direction": "desc" if sort == key and direction == "asc" else "asc"}), "aria_sort": ("ascending" if direction == "asc" else "descending") if sort == key else "none"} for key, label in (("email", "E-mail"), ("name", "Spillernavn"), ("score", "Topscore"), ("opened", "Åbne låger"), ("login", "Login"), ("doors", "Lågetryk"), ("snake", "Spilklik"), ("last_log", "Seneste log"), ("early_access", "Tidlig adgang"))]
     ids = [person.id for person in people]
     door_counts = dict(db.execute(select(CalendarDoorEvent.visitor_id, func.count()).where(CalendarDoorEvent.visitor_id.in_(ids), CalendarDoorEvent.year == YEAR).group_by(CalendarDoorEvent.visitor_id)).all()) if ids else {}
     login_counts = dict(db.execute(select(CalendarLoginEvent.visitor_id, func.count()).where(CalendarLoginEvent.visitor_id.in_(ids), CalendarLoginEvent.year == YEAR).group_by(CalendarLoginEvent.visitor_id)).all()) if ids else {}
     snake_counts = dict(db.execute(select(CalendarSnakeEvent.visitor_id, func.count()).where(CalendarSnakeEvent.visitor_id.in_(ids), CalendarSnakeEvent.year == YEAR).group_by(CalendarSnakeEvent.visitor_id)).all()) if ids else {}
     messages = {"added": "Profilen er tilføjet.", "existing": "E-mailadressen findes allerede. Adgangen er bevaret; brug Gem adgang i listen for at ændre den.", "updated": "Brugerens adgang er gemt.", "reset": "Alle brugerens låger er lukket. Historikken, login og adgangen er bevaret. Kalenderen opdateres ved næste genindlæsning eller automatiske opdatering."}
-    return templates.TemplateResponse(request, "admin/christmas_settings.html", {"request": request, "aktiv_side": "christmas_settings", "people": people, "names": names, "last_logs": last_logs, "sort_columns": sort_columns, "sort": sort, "direction": direction, "door_counts": door_counts, "login_counts": login_counts, "snake_counts": snake_counts, "q": q, "page": page, "total": count, "has_next": page * PAGE_SIZE < count, "csrf": csrf_token(request), "message": messages.get(request.query_params.get("saved"), "")}, headers={"Cache-Control": "no-store"})
+    return templates.TemplateResponse(request, "admin/christmas_settings.html", {"request": request, "aktiv_side": "christmas_settings", "people": people, "names": names, "best_scores": best_scores, "opened_counts": opened_counts, "last_logs": last_logs, "sort_columns": sort_columns, "sort": sort, "direction": direction, "door_counts": door_counts, "login_counts": login_counts, "snake_counts": snake_counts, "q": q, "page": page, "total": count, "has_next": page * PAGE_SIZE < count, "csrf": csrf_token(request), "message": messages.get(request.query_params.get("saved"), "")}, headers={"Cache-Control": "no-store"})
 
 
 @router.post("/indstillinger/tilfoej")

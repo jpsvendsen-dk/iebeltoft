@@ -15,6 +15,36 @@ HEADERS = account_tests.HEADERS
 
 
 class CalendarHistoryTests(unittest.TestCase):
+    def test_profile_topscore_and_current_open_doors(self):
+        from app.models import CalendarSnakeProfile, CalendarOpenedDoor
+        with self.Session() as db:
+            people=[CalendarVisitor(email=f'player{i}@example.com') for i in range(3)]
+            db.add_all(people);db.flush();ids=[p.id for p in people]
+            db.add_all([CalendarSnakeProfile(visitor_id=ids[0],year=2026,best_score=440),CalendarSnakeProfile(visitor_id=ids[1],year=2026,best_score=20),CalendarSnakeProfile(visitor_id=ids[2],year=2025,best_score=999)])
+            for day in (1,2,3):
+                db.add(CalendarOpenedDoor(visitor_id=ids[1],year=2026,day=day))
+            db.add(CalendarOpenedDoor(visitor_id=ids[0],year=2026,day=1))
+            db.add(CalendarOpenedDoor(visitor_id=ids[2],year=2025,day=1))
+            for i in range(5):
+                db.add(CalendarDoorEvent(visitor_id=ids[0],year=2026,event_id=str(uuid4()),day=1,result='reopened',clicked_at=self.now))
+            db.commit()
+        admin,csrf=self.admin();path='/admin/jul2026/indstillinger'
+        page=admin.get(path,params={'sort':'score','direction':'desc'})
+        self.assertEqual(page.context['best_scores'],{ids[0]:440,ids[1]:20,ids[2]:0})
+        self.assertEqual([p.id for p in page.context['people']],ids)
+        self.assertEqual(page.context['opened_counts'],{ids[0]:1,ids[1]:3,ids[2]:0})
+        self.assertIn('440 point',page.text);self.assertIn('3 / 24',page.text)
+        page=admin.get(path,params={'sort':'opened','direction':'desc'})
+        self.assertEqual([p.id for p in page.context['people']],[ids[1],ids[0],ids[2]])
+        admin.post('/admin/jul2026/historik/slet',params={'person_id':ids[0]},data={'csrf':csrf,'confirm':'delete-history'})
+        page=admin.get(path)
+        self.assertEqual(page.context['opened_counts'][ids[0]],1)
+        self.assertEqual(page.context['best_scores'][ids[0]],440)
+        admin.post(f'/admin/jul2026/indstillinger/brugere/{ids[0]}/nulstil',data={'csrf':csrf,'confirm':'reset'})
+        page=admin.get(path)
+        self.assertEqual(page.context['opened_counts'][ids[0]],0)
+        self.assertEqual(page.context['best_scores'][ids[0]],440)
+
     def test_profile_table_sorting_names_and_latest_log(self):
         from app.models import CalendarSnakeEvent, CalendarSnakeProfile
         with self.Session() as db:

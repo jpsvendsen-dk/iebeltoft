@@ -26,6 +26,8 @@
   <tr class="border-t align-top">
     <td class="px-4 py-4 font-semibold">{{ person.email }}</td>
     <td class="px-4 py-4">{{ names.get(person.id) or 'Ikke valgt' }}</td>
+    <td class="px-4 py-4 whitespace-nowrap">{{ best_scores.get(person.id,0) }} point</td>
+    <td class="px-4 py-4 whitespace-nowrap">{{ opened_counts.get(person.id,0) }} / 24</td>
     <td class="px-4 py-4"><a href="/admin/jul2026/historik?kind=login&amp;email={{ person.email|urlencode }}" class="text-blue-700 underline" aria-label="Loginhistorik for {{ person.email }}">{{ login_counts.get(person.id,0) }}</a></td>
     <td class="px-4 py-4"><a href="/admin/jul2026/historik?kind=doors&amp;email={{ person.email|urlencode }}" class="text-blue-700 underline" aria-label="Lågehistorik for {{ person.email }}">{{ door_counts.get(person.id,0) }}</a></td>
     <td class="px-4 py-4"><a href="/admin/jul2026/historik?kind=snake&amp;email={{ person.email|urlencode }}" class="text-blue-700 underline" aria-label="Spilhistorik for {{ person.email }}">{{ snake_counts.get(person.id,0) }}</a></td>
@@ -33,7 +35,7 @@
     <td class="px-4 py-4"><form method="post" action="/admin/jul2026/indstillinger/brugere/{{ person.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><label class="flex gap-2 items-start mb-2"><input type="checkbox" name="early_access" value="true" {% if person.early_access %}checked{% endif %} class="mt-1 h-4 w-4"><span>Alle 24 låger</span></label><button class="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 whitespace-nowrap" type="submit">Gem adgang</button></form></td>
     <td class="px-4 py-4"><a href="/admin/jul2026/indstillinger/brugere/{{ person.id }}/nulstil" class="text-red-700 underline block mb-2 whitespace-nowrap">Nulstil alle låger</a><a href="/admin/jul2026/historik/slet?person_id={{ person.id }}" class="text-red-700 underline whitespace-nowrap">Slet historik</a></td>
   </tr>
-{% else %}<tr><td colspan="8" class="p-5">Der er ingen profiler i denne søgning.</td></tr>{% endfor %}
+{% else %}<tr><td colspan="10" class="p-5">Der er ingen profiler i denne søgning.</td></tr>{% endfor %}
   </tbody>
 </table>
 </div>
