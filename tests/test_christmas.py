@@ -75,6 +75,19 @@ class ChristmasTests(unittest.TestCase):
         for reflection in christmas.REFLECTIONS:
             self.assertNotIn(reflection, response.text)
 
+    def test_social_crawler_gets_full_html_and_head_support(self):
+        headers={'User-Agent':'facebookexternalhit/1.1','Range':'bytes=0-524288'}
+        for path in ('/Jul2026','/Jul2026/'):
+            page=self.client.get(path,headers=headers)
+            self.assertEqual(page.status_code,200)
+            self.assertNotIn('content-range',page.headers)
+            self.assertIn('property="og:title"',page.text)
+            self.assertIn('jul-paa-torvet-deling-2026.jpg',page.text)
+            self.assertIn('</html>',page.text)
+            head=self.client.head(path,headers=headers)
+            self.assertEqual(head.status_code,200)
+            self.assertEqual(head.content,b'')
+
 
 if __name__ == "__main__":
     unittest.main()

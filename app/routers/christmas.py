@@ -1,6 +1,7 @@
 """Christmas calendar. The server, never the visitor's clock, unlocks content."""
 from fastapi import APIRouter, Request, HTTPException, Depends
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from pathlib import Path
 from pydantic import BaseModel, StrictInt, Field
 from uuid import UUID
 from sqlalchemy import select, update
@@ -80,13 +81,14 @@ def is_preview(request):
     return preview
 
 
-@router.get("/Jul2026")
-@router.get("/Jul2026/", include_in_schema=False)
+@router.api_route("/Jul2026", methods=["GET", "HEAD"])
+@router.api_route("/Jul2026/", methods=["GET", "HEAD"], include_in_schema=False)
 @router.get("/admin/jul2026")
 async def calendar(request: Request):
     if request.url.path.startswith("/admin/") and request.session.get("admin") is not True:
         return RedirectResponse("/admin/login", status_code=303)
-    return FileResponse("static/jul2026/index.html", headers={"Cache-Control": "no-store"})
+    # Return the complete HTML even when a social crawler sends a Range header.
+    return HTMLResponse(Path("static/jul2026/index.html").read_text(encoding="utf-8"), headers={"Cache-Control": "no-store"})
 
 
 @router.get("/Jul2026/api/state")
