@@ -82,7 +82,7 @@ export async function runTests() {
       },
     },{microtaskMode:'afterEvaluate'});
     // Supply the lazy module loader explicitly in this browser simulation.
-    new vm.Script(source.replace("await import('/static/jul2026/dance-v2/dancer.js?v=2')",'await loadDancer()')).runInContext(ctx);
+    new vm.Script(source.replace("await import('/static/jul2026/dance-v2/dancer.js?v=3')",'await loadDancer()')).runInContext(ctx);
     const drain=()=>{for(let i=0;i<20;i++)vm.runInContext('',ctx);};
     drain();
     return {get,storage,calls,drain,players,danceCalls,dance,delays,resolveDance:()=>resolveDance(danceModule),readyVideo:()=>{const p=players.at(-1);p.events.onReady({target:p});drain();},settle:async()=>{for(let i=0;i<4;i++){await nextTurn();drain();}},audioCalls,sources,audioSession,refresh:()=>{refresh();drain();},setAccount:a=>{current=a;},offline:v=>{offline=v;},loseResponse:()=>{dropNextOpen=true;},days:()=>current?.opened,door:day=>get('calendar').children.find(e=>e.dataset.day===day)};

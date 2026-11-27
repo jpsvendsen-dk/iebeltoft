@@ -18,7 +18,7 @@
     if(!['N8NcQzMQN_U','Mv6FViYatkU','XZTzai1H9DM','bjyw-jwPjoQ','E8gmARGvPlI'].includes(videoId))return;
     const generation=danceGeneration;
     try{
-      const module=await import('/static/jul2026/dance-v2/dancer.js?v=2');
+      const module=await import('/static/jul2026/dance-v2/dancer.js?v=3');
       if(generation!==danceGeneration||!$('surprise').open)return;
       const created=await module.createDancer($('elf-stage'),{videoId,getPlayer:()=>videoPlayer,isCurrent:()=>generation===danceGeneration&&$('surprise').open,isVisible:()=>generation===danceGeneration&&$('surprise').open&&$('video-container').classList.contains('video-visible'),preview});
       if(generation!==danceGeneration){created?.dispose();return;}

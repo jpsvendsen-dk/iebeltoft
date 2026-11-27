@@ -90,4 +90,5 @@
 /* The filmed dancer preserves its portrait proportions, including on Safari. */
 .elf-stage canvas{width:auto;height:190px;max-width:100%;object-fit:contain;filter:none}
 .elf-stage video[hidden]{display:none!important}
-@media(max-width:700px),(max-height:500px){.elf-stage canvas{width:auto;height:96px}}
+@media(max-width:700px){.elf-stage canvas{width:auto;height:140px}}
+@media(max-height:500px){.elf-stage canvas{width:auto;height:112px}}
