@@ -30,10 +30,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&amp;family=Playfair+Display:wght@400;500;600&amp;display=swap">
   <link rel="stylesheet" href="/static/jul2026/calendar.css?v=21">
-  <link rel="stylesheet" href="/static/jul2026/snake.css?v=10">
+  <link rel="stylesheet" href="/static/jul2026/snake.css?v=11">
   <script src="/static/jul2026/calendar.js?v=21" defer></script>
   <script src="/static/jul2026/cursor-snow.js?v=1" defer></script>
-  <script type="module" src="/static/jul2026/snake.js?v=9"></script>
+  <script type="module" src="/static/jul2026/snake.js?v=10"></script>
 </head>
 <body>
   <div class="christmas-world">
@@ -77,6 +77,7 @@
         <div class="snake-toolbar"><button id="snake-start" type="button">Start spil</button><button id="snake-pause" type="button" hidden>Pause</button><button id="snake-sound" type="button" aria-pressed="true" aria-label="Slå spillets og kalenderens lyd til eller fra">♫ Lyd til</button><button id="snake-retry" type="button" hidden>Prøv at gemme igen</button><button id="snake-reload" type="button" hidden>Hent profil igen</button></div>
         <div class="snake-dpad" role="group" aria-label="Styr slangen"><button type="button" data-snake-direction="3" aria-label="Op">↑</button><button type="button" data-snake-direction="2" aria-label="Venstre">←</button><button type="button" data-snake-direction="1" aria-label="Ned">↓</button><button type="button" data-snake-direction="0" aria-label="Højre">→</button></div>
         <p id="snake-status" role="status" aria-live="polite">Saml gaver, og undgå kanten og din egen hale. 10 point pr. gave.</p>
+        <div id="snake-invitation" hidden><p id="snake-invitation-text" role="status" aria-live="polite"></p><button id="snake-join-top" type="button">Opret profil og deltag</button></div>
         <p class="snake-hint">Brug piletaster/WASD, knapperne eller swipe på spillepladen. Spillet pauses, når du forlader det.</p>
         </div>
       </section>

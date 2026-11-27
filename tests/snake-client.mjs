@@ -36,7 +36,7 @@ export async function runSnakeTests() {
     for(let i=1;i<length;i++)assert.equal(Math.abs(model.body[i][0]-model.body[i-1][0])+Math.abs(model.body[i][1]-model.body[i-1][1]),1);
   }
 
-  function harness(initialProfile=null) {
+  function harness(initialProfile=null,{leaderboardPlayers=null,leaderboardFails=false}={}) {
     const nodes=new Map(),storage=new Map(),calls=[],docEvents={},winEvents={},timers=new Map(),frames=new Map(),headings=[];
     let clock=0;const audio=fakeAudio();
     let profile=initialProfile?{...initialProfile}:null, seq=0, failSave=false, profileFails=false, preferencesFail=false;
@@ -72,7 +72,7 @@ export async function runSnakeTests() {
         if(url.endsWith('/events'))data={ok:true};
         else if(url.endsWith('/profile') && !options.method){if(profileFails)throw Error('Offline');data={profile:profile?{...profile}:null};}
         else if(url.endsWith('/profile')){if(preferencesFail)throw Error('Navnet kunne ikke gemmes');const body=JSON.parse(options.body);assert.equal(body.account_id,profile.account_id);profile={...profile,...body};data={profile:{...profile}};}
-        else if(url.endsWith('/leaderboard'))data={players:profile?.is_public?[{rank:1,name:profile.display_name,score:profile.best_score}]:[]};
+        else if(url.endsWith('/leaderboard')){if(leaderboardFails)throw Error('Offline');data={players:leaderboardPlayers??(profile?.is_public?[{rank:1,name:profile.display_name,score:profile.best_score}]:[])};}
         else if(url.endsWith('/rounds')){assert.equal(JSON.parse(options.body).account_id,profile.account_id);assert.equal(JSON.parse(options.body).rules_version,3);data={seed:1,round_id:'test-round',max_ticks:20000,rules_version:3};}
         else if(url.endsWith('/finish')){
           const body=JSON.parse(options.body);assert.equal(body.account_id,profile.account_id);assert.equal(body.score,undefined);
@@ -119,6 +119,8 @@ export async function runSnakeTests() {
   assert.equal(guest.get('snake-lives').textContent,0);
   assert.equal(guest.storage.get('jul2026-snake-guest-best'),'10');
   assert.match(guest.get('snake-status').textContent,/Tillykke med din nye rekord/);
+  assert.equal(guest.get('snake-invitation').hidden,false);
+  assert.match(guest.get('snake-invitation-text').textContent,/10 point.*1\. plads/);
   assert(guest.frame(3000),'record fireworks animate after the round ends');
   assert.equal(guest.frame(),false,'fireworks stop after their short celebration');
   const tied=harness({account_id:91,best_score:10,display_name:'Nisse',is_public:true});
@@ -139,6 +141,29 @@ export async function runSnakeTests() {
   assert.equal(quiet.audio.contexts.length,0);assert.equal(quiet.get('sound').getAttribute('aria-pressed'),'false');
   for(let i=0;i<10;i++)quiet.tick();quiet.get('snake-pause').click();quiet.drain();for(let i=0;i<10;i++)quiet.tick();
   assert.equal(quiet.audio.tones.length,0);assert(!quiet.get('snake-start').hidden);
+  assert.equal(quiet.get('snake-invitation').hidden,true,'zero points never qualify');
+
+  function finishGuest(options){
+    const client=harness(null,options);client.open();client.start();client.tick();client.tick();client.key('ArrowUp');
+    for(let i=0;i<11;i++)client.tick();
+    client.get('snake-pause').click();client.drain();for(let i=0;i<10;i++)client.tick();
+    return client;
+  }
+  const fullTie=finishGuest({leaderboardPlayers:Array.from({length:10},(_,i)=>({rank:i+1,name:'Nisse',score:10}))});
+  assert.equal(fullTie.get('snake-invitation').hidden,true,'a tie with tenth place does not qualify');
+  const ninth=Array.from({length:9},(_,i)=>({rank:i+1,name:'Nisse',score:20}));
+  const lastPlace=finishGuest({leaderboardPlayers:[...ninth,{rank:10,name:'Nisse',score:5}]});
+  assert.equal(lastPlace.get('snake-invitation').hidden,false);
+  assert.match(lastPlace.get('snake-invitation-text').textContent,/10\. plads/);
+  let signupOpened=false;lastPlace.get('account-open').addEventListener('click',()=>{signupOpened=true;});
+  lastPlace.get('snake-join-top').click();lastPlace.drain();
+  assert(signupOpened);assert.equal(lastPlace.get('snake-dialog').open,false);
+  const emptyPlace=finishGuest({leaderboardPlayers:ninth});
+  assert.equal(emptyPlace.get('snake-invitation').hidden,false,'an unfilled top ten has room for a positive score');
+  emptyPlace.start();assert.equal(emptyPlace.get('snake-invitation').hidden,true,'new round clears the invitation');
+  const unavailable=finishGuest({leaderboardFails:true});
+  assert.equal(unavailable.get('snake-invitation').hidden,true,'do not claim a place without a live leaderboard');
+  assert.equal(tied.get('snake-invitation').hidden,true,'signed-in players are not asked to register');
 
   const fast=harness({account_id:21,best_score:0,display_name:'',is_public:false});fast.open();fast.start();
   fast.key('ArrowUp');fast.key('ArrowLeft'); // Two quick corners before the next simulation step.

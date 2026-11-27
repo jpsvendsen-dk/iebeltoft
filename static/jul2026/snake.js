@@ -43,12 +43,28 @@ import {SnakeAudio} from './snake-audio.js?v=2';
     $('snake-reload').hidden = loaded || loading;
     $('snake-settings').hidden = !profile;
     $('snake-login').hidden = Boolean(profile);
+    if(profile||phase!=='over')$('snake-invitation').hidden=true;
     $('snake-profile-note').textContent = profile ? 'Din rekord gemmes på kalenderprofilen på tværs af enheder.' : 'Gæstespil · Rekorden gemmes kun i denne browser. Log ind for at gemme på din profil.';
     $('snake-player-note').textContent=profile?.display_name?`Du spiller som ${profile.display_name}`:profile?'Du er logget ind · Vælg dit spillernavn under “Julens top 10”.':'Du spiller som gæst';
     $('snake-public').checked=true;
     $('snake-membership').textContent=!profile?'Log ind for at gemme dit spillernavn og deltage.':!profile.display_name?'Gem dit spillernavn nedenfor. Din rekord kommer automatisk med på toplisten.':profile.best_score===0?`Du spiller som ${profile.display_name}. Afslut et spil med point for at komme med på listen.`:`Du deltager som ${profile.display_name} · Din rekord er ${profile.best_score} point.`;
   }
   function draw() { renderer.update(game || preview, phase); }
+  async function inviteGuestToTopTen(finishedGame) {
+    const score=guestBest;
+    if(profile||score<=0)return;
+    try{
+      const data=await request('/leaderboard');
+      if(profile||game!==finishedGame||phase!=='over'||!dialog.open)return;
+      const players=data.players;
+      if(!Array.isArray(players))return;
+      // Existing players win tied scores, matching the server's ordering.
+      const rank=1+players.filter(player=>player.score>=score).length;
+      if(rank>10)return;
+      $('snake-invitation-text').textContent=`Din gæsterekord på ${score} point ville lige nu give en ${rank}. plads på Julens top 10! Opret en profil og vælg et spillernavn for at spille med på toplisten.`;
+      $('snake-invitation').hidden=false;
+    }catch(_){/* An unavailable leaderboard must not interrupt the game. */}
+  }
   async function leaderboard() {
     const list=$('snake-toplist'),generation=++leaderboardGeneration;
     try {
@@ -93,6 +109,7 @@ import {SnakeAudio} from './snake-audio.js?v=2';
     else {guestBest=Math.max(guestBest,game.score);try{localStorage.setItem('jul2026-snake-guest-best',String(guestBest));}catch(_){}message(`${newRecord?'Tillykke med din nye rekord! ':''}Spillet er slut · ${game.score} point. Din lokale rekord er ${guestBest} point.`);}
     controls();draw();
     if(newRecord)renderer.celebrate();
+    if(!round)void inviteGuestToTopTen(game);
   }
   function schedule() {
     clearTimeout(timer);
@@ -154,6 +171,7 @@ import {SnakeAudio} from './snake-audio.js?v=2';
   $('snake-pause').addEventListener('click',()=>{if(loading)return;if(phase==='running')pause();else if(phase==='paused'||phase==='life'){void sounds.unlock();if(phase==='life'){game.respawn();directionQueue=[];}phase='running';message('God gavejagt!');controls();draw();schedule();canvas.focus({preventScroll:true});}});
   $('snake-sound').addEventListener('click',()=>{$('sound').click();controls();if(sounds.enabled)void sounds.unlock();});
   $('snake-login').addEventListener('click',()=>{dialog.close();$('account-open').click();});
+  $('snake-join-top').addEventListener('click',()=>{dialog.close();$('account-open').click();});
   const keyMap={ArrowRight:0,d:0,D:0,ArrowDown:1,s:1,S:1,ArrowLeft:2,a:2,A:2,ArrowUp:3,w:3,W:3};
   document.addEventListener('keydown',event=>{
     if(!dialog.open)return;
