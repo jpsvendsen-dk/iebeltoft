@@ -18,9 +18,10 @@
 @media(max-width:700px){#snake-dialog{padding:12px}.snake-heading{margin-bottom:8px}.snake-heading h2{font-size:1.65rem}.snake-layout{grid-template-columns:minmax(0,1fr);gap:18px}#snake-board{width:min(100%,33svh);max-height:none;max-width:300px}.snake-scores{max-width:300px;margin:0 auto 6px}.snake-toolbar{margin-top:8px}.snake-dpad{margin-top:8px}.snake-hint{margin-top:6px}#snake-status{margin-top:8px}.snake-social{border-top:1px solid #cbbd9f;padding-top:14px}}
 @media(max-height:500px) and (min-width:600px){#snake-dialog{padding:12px}.snake-heading{margin-bottom:8px}.snake-heading h2{font-size:1.4rem}.snake-layout{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}#snake-board{width:min(100%,52svh);max-height:none;max-width:260px}.snake-dpad{grid-template-columns:repeat(4,44px);grid-template-rows:44px}.snake-dpad button{grid-row:1!important;grid-column:auto!important}.snake-social{border:0;padding-top:0}}
 .snake-arena,.snake-controls{min-width:0}
+.snake-social{max-width:none;margin:0;text-align:left}
 @media(min-width:600px){
   #snake-dialog{max-width:820px}
-  .snake-topline{display:grid;grid-template-columns:minmax(0,420px) 190px;gap:24px;align-items:end;justify-content:center;margin-bottom:8px}
+  .snake-topline{display:grid;grid-template-columns:minmax(0,420px) 190px;gap:24px;align-items:end;justify-content:space-between;margin-bottom:8px}
   .snake-topline .snake-heading{margin:0;padding:0}
   .snake-topline .snake-navigation{margin:32px 0 0;gap:6px}
   #snake-dialog .snake-navigation button{padding:8px 10px;white-space:nowrap}

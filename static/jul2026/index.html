@@ -30,7 +30,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&amp;family=Playfair+Display:wght@400;500;600&amp;display=swap">
   <link rel="stylesheet" href="/static/jul2026/calendar.css?v=21">
-  <link rel="stylesheet" href="/static/jul2026/snake.css?v=9">
+  <link rel="stylesheet" href="/static/jul2026/snake.css?v=10">
   <script src="/static/jul2026/calendar.js?v=21" defer></script>
   <script src="/static/jul2026/cursor-snow.js?v=1" defer></script>
   <script type="module" src="/static/jul2026/snake.js?v=9"></script>
@@ -82,7 +82,7 @@
       </section>
       <aside class="snake-social" aria-label="Profil og topliste">
         <h3>Julens top 10 · 2026</h3><p id="snake-membership" class="snake-hint"></p><p class="snake-hint">Toplisten viser automatisk spillere med et gemt spillernavn og en rekord over 0 point. Ved samme pointtal kommer den først opnåede rekord øverst.</p><ol id="snake-toplist" aria-label="Topliste"><li>Henter julens rekorder …</li></ol><button type="button" id="snake-top-refresh">Opdatér topliste</button>
-        <p id="snake-profile-note"></p><button type="button" id="snake-login">Log ind for at gemme din rekord</button>
+        <p id="snake-profile-note"></p><button type="button" id="snake-login">Gem rekord</button>
         <section id="snake-settings" hidden aria-labelledby="snake-settings-title"><h3 id="snake-settings-title">Dit spillernavn</h3><form id="snake-preferences"><label for="snake-name">Spillernavn</label><input id="snake-name" name="display_name" maxlength="20" minlength="2" autocomplete="off" aria-describedby="snake-name-help snake-preferences-status"><p id="snake-name-help" class="snake-hint">2–20 tegn. Navnet gemmes automatisk på din profil og huskes på dine andre enheder. Din e-mail vises ikke.</p><label class="snake-opt-in"><input id="snake-public" type="checkbox" checked disabled> Vis mit spillernavn og min rekord på toplisten</label><button id="snake-settings-save" type="submit">Gem indstillinger</button><p id="snake-preferences-status" class="snake-hint" role="status" aria-live="polite"></p></form></section>
       </aside>
     </div>
@@ -92,7 +92,7 @@
     <div class="about-copy">
       <p class="eyebrow">DIN EGEN JULEKALENDER</p><h2 id="account-title">Tag julehyggen med</h2>
       <div id="account-guest">
-        <p>Få et personligt loginlink på e-mail. Så husker vi dine halvåbne låger på mobil, tablet og computer. Du skal ikke vælge en adgangskode.</p>
+        <p>Få et personligt loginlink på e-mail. Din profil husker dine halvåbne låger, dit spillernavn og din topscore i Jule-Snake på mobil, tablet og computer. Når du spiller som logget ind, gemmes din rekord automatisk. Du skal ikke vælge en adgangskode.</p>
         <form id="login-form"><label for="login-email">Din e-mailadresse</label><input id="login-email" type="email" name="email" maxlength="254" autocomplete="email" placeholder="dig@eksempel.dk" required><button class="youtube" id="login-submit" type="submit">Send mit loginlink</button></form>
         <p id="login-status" role="status"></p>
         <p class="account-help">Linket gælder i 15 minutter. Når du bekræfter login, tages denne browsers allerede åbnede låger med. Vi bruger din e-mail til login, ikke til reklamer.</p>
