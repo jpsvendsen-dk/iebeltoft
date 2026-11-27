@@ -58,7 +58,7 @@ export class SnakeRenderer {
       if(!fresh && game.score>old.score && old.food && !this.motion?.matches){
         this.effects.push({x:(old.food[0]+.5)*CELL,y:(old.food[1]+.5)*CELL,time:now});
       }
-      if(fresh)this.effects=[];
+      if(fresh){this.effects=[];this.recordAt=null;}
       this.scene={body:game.body.map(p=>[...p]),food:game.food?[...game.food]:null,direction:game.direction,interval:game.interval,score:game.score,lives:game.lives,won:game.won};
       this.source=game;this.tick=game.tick;this.started=now;
       this.lifeLost=game.lifeLost;
@@ -73,8 +73,30 @@ export class SnakeRenderer {
     this.stop();this.draw(now);this.animate();
   }
   animate() {
-    if(this.frame!==null || this.phase!=='running' || this.motion?.matches)return;
+    const celebrating=this.recordAt!=null&&performance.now()-this.recordAt<2600;
+    if(this.frame!==null || (this.phase!=='running'&&!celebrating) || this.motion?.matches||document.hidden)return;
     this.frame=requestAnimationFrame(now=>{this.frame=null;this.draw(now);this.animate();});
+  }
+  celebrate() {
+    this.recordAt=performance.now();
+    this.draw(this.recordAt);this.animate();
+  }
+  fireworks(now) {
+    if(this.recordAt==null||this.motion?.matches)return;
+    const elapsed=now-this.recordAt,c=this.ctx;
+    for(const [index,x,y,color] of [[0,100,115,'#ffd785'],[1,335,120,'#ff9b9b'],[2,220,80,'#a1e6d1']]){
+      const t=(elapsed-index*430)/1500;
+      if(t<0||t>1)continue;
+      c.save();c.globalAlpha=(1-t)*(1-t);c.strokeStyle=color;c.fillStyle=color;
+      c.lineWidth=2;c.shadowColor=color;c.shadowBlur=7;
+      for(let i=0;i<22;i++){
+        const angle=i*Math.PI*2/22,radius=(45+(i%3)*16)*Math.sin(t*Math.PI/2);
+        const px=x+Math.cos(angle)*radius,py=y+Math.sin(angle)*radius+36*t*t;
+        c.beginPath();c.moveTo(px-Math.cos(angle)*7*(1-t),py-Math.sin(angle)*7*(1-t));c.lineTo(px,py);c.stroke();
+        c.beginPath();c.arc(px,py,1.5,0,Math.PI*2);c.fill();
+      }
+      c.restore();
+    }
   }
   positions(now) {
     const t=this.fraction(now);
@@ -141,8 +163,10 @@ export class SnakeRenderer {
     if(this.phase==='paused'||this.phase==='over'||this.phase==='life'){
       c.fillStyle='#082c31a8';c.fillRect(0,0,VIEW,VIEW);
       c.fillStyle='#112e35ed';this.roundedBox(c,48,164,344,112,20);c.fill();c.strokeStyle='#e6c58c66';c.lineWidth=1;c.stroke();
-      c.fillStyle='#fff0d3';c.textAlign='center';c.font='600 26px system-ui';c.fillText(this.phase==='life'?(this.scene.lives===1?'Ét liv tilbage':`${this.scene.lives} liv tilbage`):this.phase==='paused'?'En lille julepause':this.scene.won?'Alle gaver samlet!':'Tak for spillet!',VIEW/2,211);
-      c.font='17px system-ui';c.fillStyle='#e7d4b4';c.fillText(this.phase==='life'?'Tryk “Brug næste liv”':this.phase==='over'?`${this.scene.score} point`:'Tag dig god tid',VIEW/2,244);
+      const record=this.phase==='over'&&this.recordAt!=null;
+      c.fillStyle=record?'#ffdf94':'#fff0d3';c.textAlign='center';c.font='600 26px system-ui';c.fillText(this.phase==='life'?(this.scene.lives===1?'Ét liv tilbage':`${this.scene.lives} liv tilbage`):this.phase==='paused'?'En lille julepause':record?'Tillykke!':this.scene.won?'Alle gaver samlet!':'Tak for spillet!',VIEW/2,211);
+      c.font='17px system-ui';c.fillStyle='#e7d4b4';c.fillText(this.phase==='life'?'Tryk “Brug næste liv”':this.phase==='over'?`${record?'Ny rekord · ':''}${this.scene.score} point`:'Tag dig god tid',VIEW/2,244);
     }
+    this.fireworks(now);
   }
 }

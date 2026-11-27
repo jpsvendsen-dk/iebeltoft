@@ -1,5 +1,5 @@
 import {SnakeGame} from './snake-core.js?v=3';
-import {SnakeRenderer} from './snake-renderer.js?v=5';
+import {SnakeRenderer} from './snake-renderer.js?v=6';
 import {SnakeAudio} from './snake-audio.js?v=2';
 
 (() => {
@@ -9,6 +9,7 @@ import {SnakeAudio} from './snake-audio.js?v=2';
   let game = null, round = null, turns = [], directionQueue = [], timer;
   let phase = 'idle', profile = null, loaded = false, loading = false, saving = false, pending = false, failedSave = false;
   let loadGeneration = 0, guestBest = 0;
+  let newRecord = false;
   let preferencesDirty=false, preferencesTimer, preferencesPromise=null, leaderboardGeneration=0;
   try { guestBest = Math.max(0,Math.min(200000,Number(localStorage.getItem('jul2026-snake-guest-best'))||0)); } catch (_) {}
   const message = text => { $('snake-status').textContent = text; };
@@ -80,16 +81,18 @@ import {SnakeAudio} from './snake-audio.js?v=2';
     try {
       const data=await request(`/rounds/${submission.round_id}/finish`,{account_id:submission.account_id,ticks:game.tick,turns});
       if(round!==submission)return;
-      profile={...profile,best_score:Math.max(profile?.best_score||0,data.profile.best_score)};pending=false;message(`Gemt på profilen · Din rekord er ${profile.best_score} point.`);void leaderboard();
+      profile={...profile,best_score:Math.max(profile?.best_score||0,data.profile.best_score)};pending=false;message(`${newRecord?'Tillykke med din nye rekord! ':''}Gemt på profilen · Din rekord er ${profile.best_score} point.`);void leaderboard();
     } catch(error){if(round===submission){failedSave=true;message(`${error.message||'Resultatet kunne ikke gemmes.'} Behold siden åben, og prøv at gemme igen.`);}}
     finally{saving=false;controls();}
   }
   function finish() {
     phase='over';
+    newRecord=game.score>(profile?profile.best_score:guestBest);
     sounds.play(game.won?'start':'over');
     if(round){pending=true;void saveResult();}
-    else {guestBest=Math.max(guestBest,game.score);try{localStorage.setItem('jul2026-snake-guest-best',String(guestBest));}catch(_){}message(`Spillet er slut · ${game.score} point. Din lokale rekord er ${guestBest} point.`);}
+    else {guestBest=Math.max(guestBest,game.score);try{localStorage.setItem('jul2026-snake-guest-best',String(guestBest));}catch(_){}message(`${newRecord?'Tillykke med din nye rekord! ':''}Spillet er slut · ${game.score} point. Din lokale rekord er ${guestBest} point.`);}
     controls();draw();
+    if(newRecord)renderer.celebrate();
   }
   function schedule() {
     clearTimeout(timer);
@@ -120,7 +123,7 @@ import {SnakeAudio} from './snake-audio.js?v=2';
       let seed;
       if(profile){const started=await request('/rounds',{account_id:profile.account_id,rules_version:3});round={...started,account_id:profile.account_id};seed=started.seed;}
       else{round=null;const random=new Uint32Array(1);crypto.getRandomValues(random);seed=random[0]||1;}
-      game=new SnakeGame(seed,round?.rules_version??3);turns=[];directionQueue=[];phase=dialog.open&&!document.hidden?'running':'paused';
+      game=new SnakeGame(seed,round?.rules_version??3);newRecord=false;turns=[];directionQueue=[];phase=dialog.open&&!document.hidden?'running':'paused';
       failedSave=false;message(phase==='running'?'God gavejagt!':'Spillet er på pause. Tryk Fortsæt.');
       if(phase==='running'){sounds.play('start');schedule();}
       if(phase==='running')canvas.focus({preventScroll:true});
@@ -141,9 +144,9 @@ import {SnakeAudio} from './snake-audio.js?v=2';
     dialog.showModal();showView('play',false);pause();void loadProfile();void leaderboard();
   });
   $('snake-close').addEventListener('click',()=>dialog.close());
-  dialog.addEventListener('close',()=>{pause();void savePreferences();});dialog.addEventListener('cancel',pause);
+  dialog.addEventListener('close',()=>{pause();renderer.stop();void savePreferences();});dialog.addEventListener('cancel',pause);
   dialog.addEventListener('click',event=>{if(event.target===dialog){const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close();}});
-  document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden){pause();renderer.stop();}});
   window.addEventListener('orientationchange',pause);
   $('snake-start').addEventListener('click',start);
   $('snake-retry').addEventListener('click',saveResult);

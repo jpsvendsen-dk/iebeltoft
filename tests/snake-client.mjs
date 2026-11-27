@@ -118,6 +118,16 @@ export async function runSnakeTests() {
   guest.get('snake-pause').click();guest.drain();for(let i=0;i<10;i++)guest.tick();
   assert.equal(guest.get('snake-lives').textContent,0);
   assert.equal(guest.storage.get('jul2026-snake-guest-best'),'10');
+  assert.match(guest.get('snake-status').textContent,/Tillykke med din nye rekord/);
+  assert(guest.frame(3000),'record fireworks animate after the round ends');
+  assert.equal(guest.frame(),false,'fireworks stop after their short celebration');
+  const tied=harness({account_id:91,best_score:10,display_name:'Nisse',is_public:true});
+  tied.open();tied.start();tied.tick();tied.tick();tied.key('ArrowUp');
+  for(let i=0;i<11;i++)tied.tick();
+  tied.get('snake-pause').click();tied.drain();for(let i=0;i<10;i++)tied.tick();
+  assert.equal(tied.profile().best_score,10);
+  assert.doesNotMatch(tied.get('snake-status').textContent,/Tillykke/,'matching a record does not beat it');
+  assert.equal(tied.frame(),false,'no fireworks for a tied record');
   assert.equal(guest.audio.tones.length,20); // Start 10 + gift 4 + lost life 2 + final death 4.
   assert(!guest.calls.some(c=>c.url.endsWith('/rounds')||c.url.endsWith('/finish')));
   assert.deepEqual(guest.renderProbe(),{x:[231,242,253],paused:[231,231,231],reduced:253});
@@ -153,6 +163,7 @@ export async function runSnakeTests() {
   user.get('snake-pause').click();user.drain();for(let i=0;i<10;i++)user.tick();
   assert.equal(user.get('snake-retry').hidden,false);assert(user.get('snake-start').disabled);
   user.failSave(false);user.get('snake-retry').click();user.drain();assert.equal(user.profile().best_score,10);
+  assert.match(user.get('snake-status').textContent,/Tillykke med din nye rekord/);
   assert.equal(user.get('snake-retry').hidden,true);assert(!user.get('snake-start').disabled);
   const finishes=user.calls.filter(c=>c.url.endsWith('/finish'));assert.equal(finishes.length,2);assert.equal(finishes[0].options.body,finishes[1].options.body);
   user.get('snake-name').value='Nisse';user.get('snake-public').checked=true;user.get('snake-preferences').emit('submit');user.drain();assert(user.profile().is_public);
