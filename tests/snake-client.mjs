@@ -135,7 +135,7 @@ export async function runSnakeTests() {
   assert.deepEqual(guest.renderProbe(),{x:[231,242,253],paused:[231,231,231],reduced:253});
   guest.start();guest.hidden();assert.equal(guest.tick(),false);assert.equal(guest.frame(),false);assert.equal(guest.get('snake-pause').textContent,'Fortsæt');
   assert(guest.audio.stops.length>=20); // Pausing also stops any scheduled sounds.
-  assert.deepEqual(guest.calls.filter(c=>c.url.endsWith('/events')).map(c=>JSON.parse(c.options.body).action),['open','replay']);
+  assert.deepEqual(guest.calls.filter(c=>c.url.endsWith('/events')).map(c=>JSON.parse(c.options.body).action),['open','start','replay']);
 
   const quiet=harness();quiet.open();quiet.get('snake-sound').click();quiet.start();
   assert.equal(quiet.audio.contexts.length,0);assert.equal(quiet.get('sound').getAttribute('aria-pressed'),'false');
@@ -188,6 +188,7 @@ export async function runSnakeTests() {
   user.get('snake-pause').click();user.drain();for(let i=0;i<10;i++)user.tick();
   assert.equal(user.get('snake-retry').hidden,false);assert(user.get('snake-start').disabled);
   user.failSave(false);user.get('snake-retry').click();user.drain();assert.equal(user.profile().best_score,10);
+  assert.deepEqual(user.calls.filter(c=>c.url.endsWith('/events')).map(c=>JSON.parse(c.options.body).action),['open','start']);
   assert.match(user.get('snake-status').textContent,/Tillykke med din nye rekord/);
   assert.equal(user.get('snake-retry').hidden,true);assert(!user.get('snake-start').disabled);
   const finishes=user.calls.filter(c=>c.url.endsWith('/finish'));assert.equal(finishes.length,2);assert.equal(finishes[0].options.body,finishes[1].options.body);

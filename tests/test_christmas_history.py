@@ -97,7 +97,7 @@ class CalendarHistoryTests(unittest.TestCase):
         with self.Session() as db:
             for action in ('open','replay'):
                 db.add(CalendarSnakeEvent(id=str(uuid4()),visitor_id=person['id'],year=2026,action=action,clicked_at=self.now,ip_address='203.0.113.8',device_type='iPhone'))
-            db.add(CalendarSnakeEvent(id=str(uuid4()),year=2026,action='open',clicked_at=self.now))
+            db.add(CalendarSnakeEvent(id=str(uuid4()),year=2026,action='start',clicked_at=self.now))
             db.add(CalendarSnakeProfile(visitor_id=person['id'],year=2026,best_score=80))
             db.commit()
         self.assertEqual(self.client.get('/admin/jul2026/historik?kind=snake',follow_redirects=False).status_code,303)
@@ -105,7 +105,7 @@ class CalendarHistoryTests(unittest.TestCase):
         page=admin.get('/admin/jul2026/historik?kind=snake')
         self.assertEqual(page.status_code,200)
         self.assertEqual(len(page.context['events']),3)
-        self.assertTrue(any(e['email']=='Gæst (uden login)' for e in page.context['events']))
+        self.assertTrue(any(e['email']=='Ukendt' and e['result']=='Start spil' for e in page.context['events']))
         filtered=admin.get('/admin/jul2026/historik',params={'kind':'snake','email':person['email'],'day':'24'})
         self.assertEqual(len(filtered.context['events']),2)
         self.assertEqual({e['result'] for e in filtered.context['events']},{'Spil Jule-Snake','Spil igen'})

@@ -129,8 +129,8 @@ import {SnakeAudio} from './snake-audio.js?v=2';
   }
   async function start() {
     if(!loaded || loading || saving || pending || ['running','paused','life'].includes(phase))return;
-    if(game)void logClick('replay');
     sounds.stop();void sounds.unlock();
+    void logClick(game?'replay':'start');
     loading=true;controls();
     try {
       if(!await savePreferences())throw Error('Spillernavnet kunne ikke gemmes. Se beskeden under “Julens top 10”.');

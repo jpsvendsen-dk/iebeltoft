@@ -257,6 +257,23 @@ class SnakeApiTests(unittest.TestCase):
         self.now+=timedelta(seconds=4)
         self.assertEqual(self.finish(person,new,ticks=23).status_code,200)
 
+    def test_start_click_logs_guests_and_members_once(self):
+        guest_id=str(uuid4())
+        for _ in range(2):
+            self.assertEqual(self.client.post(ROOT+'/events',headers=HEADERS,json={'event_id':guest_id,'action':'start'}).status_code,200)
+        person=self.login()
+        member_id=str(uuid4())
+        for _ in range(2):
+            self.assertEqual(self.client.post(ROOT+'/events',headers=HEADERS,json={'event_id':member_id,'action':'start'}).status_code,200)
+        with self.Session() as db:
+            guest=db.get(CalendarSnakeEvent,guest_id)
+            member=db.get(CalendarSnakeEvent,member_id)
+            self.assertIsNone(guest.visitor_id)
+            self.assertEqual(member.visitor_id,person['id'])
+            self.assertEqual(guest.action,'start')
+            self.assertEqual(member.action,'start')
+            self.assertEqual(len(db.scalars(select(CalendarSnakeEvent)).all()),2)
+
     def test_click_logs_server_metadata_guest_and_idempotency(self):
         body={'event_id':str(uuid4()),'action':'open'}
         self.client.headers['User-Agent']='iPhone Mobile Safari/604.1'

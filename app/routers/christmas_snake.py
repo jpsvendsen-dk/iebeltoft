@@ -31,7 +31,7 @@ class Start(Identity):
 
 class Click(BaseModel):
     event_id: UUID
-    action: Literal['open', 'replay']
+    action: Literal['open', 'start', 'replay']
 
 
 @router.post("/events")

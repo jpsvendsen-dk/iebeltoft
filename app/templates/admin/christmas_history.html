@@ -19,5 +19,5 @@
 </tbody></table></div>
 <nav class="flex gap-6 mt-6" aria-label="Historiksider">{% if page > 1 %}<a class="text-blue-700 underline" href="?kind={{ kind }}&amp;email={{ email|urlencode }}{% if day %}&amp;day={{ day }}{% endif %}&amp;page={{ page-1 }}">Forrige side</a>{% endif %}{% if has_next %}<a class="text-blue-700 underline" href="?kind={{ kind }}&amp;email={{ email|urlencode }}{% if day %}&amp;day={{ day }}{% endif %}&amp;page={{ page+1 }}">Næste side</a>{% endif %}</nav>
 <p class="text-gray-600 mt-5">IP-adresse og enhedsoplysninger registreres fra denne opdatering og kan ikke genskabes for ældre hændelser. En IP-adresse kan være delt eller tilhøre en VPN.</p>
-<p class="text-gray-600 mt-5">Spilklik fra besøgende uden login vises som gæster. Lågetryk fra gæster og administratorens prøvevisning indgår ikke.</p>
+<p class="text-gray-600 mt-5">Spilklik fra besøgende uden login vises som Ukendt. Lågetryk fra gæster og administratorens prøvevisning indgår ikke.</p>
 {% endblock %}

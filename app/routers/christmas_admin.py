@@ -150,8 +150,8 @@ def history(request: Request, email: str = Query(default="", max_length=254), da
     events = []
     for event, address in rows:
         timestamp = event.logged_at if kind == "login" else event.clicked_at
-        result = "Logget ind" if kind == "login" else ({"open": "Spil Jule-Snake", "replay": "Spil igen"}[event.action] if kind == "snake" else labels[event.result])
-        events.append({"email": address or "Gæst (uden login)", "day": event.day if kind == "doors" else None, "time": timestamp.replace(tzinfo=timezone.utc).astimezone(TZ).strftime("%d.%m.%Y kl. %H:%M:%S %Z"), "iso": timestamp.replace(tzinfo=timezone.utc).isoformat(), "result": result, "ip": event.ip_address, "device": event.device_type, "user_agent": event.user_agent})
+        result = "Logget ind" if kind == "login" else ({"open": "Spil Jule-Snake", "start": "Start spil", "replay": "Spil igen"}[event.action] if kind == "snake" else labels[event.result])
+        events.append({"email": address or ("Ukendt" if kind == "snake" else "Gæst (uden login)"), "day": event.day if kind == "doors" else None, "time": timestamp.replace(tzinfo=timezone.utc).astimezone(TZ).strftime("%d.%m.%Y kl. %H:%M:%S %Z"), "iso": timestamp.replace(tzinfo=timezone.utc).isoformat(), "result": result, "ip": event.ip_address, "device": event.device_type, "user_agent": event.user_agent})
     return templates.TemplateResponse(request, "admin/christmas_history.html", {"request": request, "aktiv_side": "christmas_history", "events": events, "email": email, "day": day, "kind": kind, "page": page, "total": total, "has_next": page * PAGE_SIZE < total, "deleted": request.query_params.get("deleted") == "yes"}, headers={"Cache-Control": "no-store"})
 
 
