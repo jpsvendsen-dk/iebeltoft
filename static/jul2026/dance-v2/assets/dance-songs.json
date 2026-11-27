@@ -1,6 +1,28 @@
 {
-  "N8NcQzMQN_U": {"door":1,"title":"Feliz Navidad","rhythm":"assets/feliz-rhythm.json"},
-  "Mv6FViYatkU": {"door":2,"title":"Der' noget i december","rhythm":"assets/december-rhythm.json"},
-  "XZTzai1H9DM": {"door":3,"title":"Sleigh Ride","rhythm":"assets/sleigh-rhythm.json"},
-  "bjyw-jwPjoQ": {"door":4,"title":"Tinka","rhythm":"assets/tinka-rhythm.json"}
+  "N8NcQzMQN_U": {
+    "door": 1,
+    "title": "Feliz Navidad",
+    "rhythm": "assets/feliz-rhythm.json"
+  },
+  "Mv6FViYatkU": {
+    "door": 2,
+    "title": "Der' noget i december",
+    "rhythm": "assets/december-rhythm.json"
+  },
+  "XZTzai1H9DM": {
+    "door": 3,
+    "title": "Sleigh Ride",
+    "rhythm": "assets/sleigh-rhythm.json"
+  },
+  "bjyw-jwPjoQ": {
+    "door": 4,
+    "title": "Tinka",
+    "rhythm": "assets/tinka-rhythm.json"
+  },
+  "E8gmARGvPlI": {
+    "door": 23,
+    "title": "Last Christmas",
+    "rhythm": "assets/lastchristmas-rhythm.json",
+    "video": "assets/lastchristmas-video.json"
+  }
 }

@@ -10,9 +10,9 @@ export async function runTests() {
   new vm.Script(source);
   new vm.Script(await readFile(new URL('../static/jul2026/login.js', import.meta.url), 'utf8'));
 
-  function harness({path='/Jul2026', stored={}, merge=false, account=null, offlineInitial=false, audioState=null, audioBlocked=false, apiAvailable=true, pilot=false, deferDance=false}={}) {
+  function harness({path='/Jul2026', stored={}, merge=false, account=null, offlineInitial=false, audioState=null, audioBlocked=false, apiAvailable=true, pilot=false, deferDance=false, reducedMotion=true}={}) {
     const nodes=new Map(), storage=new Map(Object.entries(stored)), session=new Map(merge ? [['jul2026-merge-guest','yes']] : []);
-    const calls=[], audioCalls=[], sources=[], audioSession={}, players=[],danceCalls=[];
+    const calls=[], audioCalls=[], sources=[], audioSession={}, players=[],danceCalls=[],delays=[];
     let resolveDance;
     const dance={states:[],disposed:false,hidden:false,playerState(value){this.states.push(value);},refresh(){this.refreshed=true;},hide(){this.hidden=true;},dispose(){this.disposed=true;}};
     const danceModule={createDancer:async(stage,options)=>{danceCalls.push({stage,options});return dance;}};
@@ -51,7 +51,7 @@ export async function runTests() {
       location:{pathname:path,origin:'https://www.iebeltoft.dk',assign(){}},localStorage:storageApi(storage),sessionStorage:storageApi(session),
       crypto:{randomUUID},URL,
       loadDancer:()=>{danceCalls.push('load');return deferDance?new Promise(resolve=>{resolveDance=resolve;}):Promise.resolve(danceModule);},
-      navigator:{audioSession},window:{YT:apiAvailable?{Player:YouTubePlayer}:undefined,AudioContext:audioState?SafariAudio:undefined,matchMedia:()=>({matches:true})},setTimeout:(f,ms)=>{if(ms===0)f();return 1;},clearTimeout(){},setInterval:f=>{refresh=f;},
+      navigator:{audioSession},window:{YT:apiAvailable?{Player:YouTubePlayer}:undefined,AudioContext:audioState?SafariAudio:undefined,matchMedia:()=>({matches:reducedMotion})},setTimeout:(f,ms)=>{delays.push(ms);if(ms===0||ms===4800||ms===2400)f();return 1;},clearTimeout(){},setInterval:f=>{refresh=f;},
       fetch:(url,options={})=>{
         audioCalls.push('fetch');
         calls.push({url,options});
@@ -82,11 +82,28 @@ export async function runTests() {
       },
     },{microtaskMode:'afterEvaluate'});
     // Supply the lazy module loader explicitly in this browser simulation.
-    new vm.Script(source.replace("await import('/static/jul2026/elf-dancer.js?v=1')",'await loadDancer()')).runInContext(ctx);
+    new vm.Script(source.replace("await import('/static/jul2026/dance-v2/dancer.js?v=2')",'await loadDancer()')).runInContext(ctx);
     const drain=()=>{for(let i=0;i<20;i++)vm.runInContext('',ctx);};
     drain();
-    return {get,storage,calls,drain,players,danceCalls,dance,resolveDance:()=>resolveDance(danceModule),readyVideo:()=>{const p=players.at(-1);p.events.onReady({target:p});drain();},settle:async()=>{for(let i=0;i<4;i++){await nextTurn();drain();}},audioCalls,sources,audioSession,refresh:()=>{refresh();drain();},setAccount:a=>{current=a;},offline:v=>{offline=v;},loseResponse:()=>{dropNextOpen=true;},days:()=>current?.opened,door:day=>get('calendar').children.find(e=>e.dataset.day===day)};
+    return {get,storage,calls,drain,players,danceCalls,dance,delays,resolveDance:()=>resolveDance(danceModule),readyVideo:()=>{const p=players.at(-1);p.events.onReady({target:p});drain();},settle:async()=>{for(let i=0;i<4;i++){await nextTurn();drain();}},audioCalls,sources,audioSession,refresh:()=>{refresh();drain();},setAccount:a=>{current=a;},offline:v=>{offline=v;},loseResponse:()=>{dropNextOpen=true;},days:()=>current?.opened,door:day=>get('calendar').children.find(e=>e.dataset.day===day)};
   }
+
+  const reopening=harness({audioState:'running',reducedMotion:false});
+  reopening.door(1).listeners.click();reopening.drain();await reopening.settle();
+  assert(reopening.get('surprise').open);
+  assert.equal(reopening.door(1).style['--door-opening-duration'],'4800ms');
+  assert.equal(reopening.sources.at(-1).buffer.duration,4.8);
+  assert(reopening.delays.includes(4800));
+  reopening.get('surprise-close').onclick();
+  reopening.door(1).listeners.click();reopening.drain();await reopening.settle();
+  assert(reopening.get('surprise').open);
+  assert.equal(reopening.door(1).style['--door-opening-duration'],'2400ms');
+  assert.equal(reopening.sources.at(-1).buffer.duration,2.4);
+  assert(reopening.delays.includes(2400));
+  const savedReopening=harness({audioState:'running',reducedMotion:false,stored:{'jul2026-opened':'[1]'}});
+  savedReopening.door(1).listeners.click();savedReopening.drain();await savedReopening.settle();
+  assert.equal(savedReopening.door(1).style['--door-opening-duration'],'2400ms');
+  assert.equal(savedReopening.sources.at(-1).buffer.duration,2.4);
 
   const pilot=harness({pilot:true});assert.equal(pilot.danceCalls.length,0);
   pilot.door(2).listeners.click();pilot.drain();assert.equal(pilot.danceCalls.length,0);

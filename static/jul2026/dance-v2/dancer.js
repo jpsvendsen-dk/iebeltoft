@@ -4,10 +4,10 @@ import {sampleDance,validateRhythm} from './beat-dance.js';
 
 export async function createDancer(stage,{videoId,getPlayer,isVisible,isCurrent=()=>true}){
     const json=async path=>{const response=await fetch(new URL(path,import.meta.url));if(!response.ok)throw Error('Dancer asset');return response.json();};
-  const songs=await json('assets/dance-songs.json');
+  const songs=await json('assets/dance-songs.json?v=2');
   const song=songs[videoId];
   if(!song||!isCurrent())return null;
-  const [info,map]=await Promise.all([json('assets/dance-video.json'),json(song.rhythm)]);
+  const [info,map]=await Promise.all([json(song.video||'assets/dance-video.json'),json(song.rhythm)]);
   validateRhythm(map);
   if(map.videoId!==videoId||Math.abs(info.duration-map.clip.duration)>.05)throw Error('Dance media mismatch');
   if(!isCurrent())return null;

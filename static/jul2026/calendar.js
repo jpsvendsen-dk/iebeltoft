@@ -7,7 +7,7 @@
   const openingMs = 4800;
   document.documentElement.style.setProperty('--door-opening-duration', `${openingMs}ms`);
   const order = [7,18,3,12,21,6,15,1,23,9,4,17,11,20,8,24,14,2,22,5,16,10,19,13];
-  let state = null, sound = true, busy = false, timer, audio, creakBuffer, activeCreak;
+  let state = null, sound = true, busy = false, timer, audio, creakBuffer, shortCreakBuffer, activeCreak;
   let audioReady = Promise.resolve(false);
   let popupVideoId = null;
   let videoPlayer = null, videoReady = false, videoGeneration = 0, videoTimer, youtubeApi;
@@ -15,10 +15,10 @@
   function stopDancer(){danceGeneration++;dancer?.dispose();dancer=null;$('elf-stage').hidden=true;$('surprise').classList.remove('elf-playing');}
   async function prepareDancer(videoId){
     stopDancer();
-    if(!['N8NcQzMQN_U','Mv6FViYatkU','XZTzai1H9DM','bjyw-jwPjoQ'].includes(videoId))return;
+    if(!['N8NcQzMQN_U','Mv6FViYatkU','XZTzai1H9DM','bjyw-jwPjoQ','E8gmARGvPlI'].includes(videoId))return;
     const generation=danceGeneration;
     try{
-      const module=await import('/static/jul2026/dance-v2/dancer.js?v=1');
+      const module=await import('/static/jul2026/dance-v2/dancer.js?v=2');
       if(generation!==danceGeneration||!$('surprise').open)return;
       const created=await module.createDancer($('elf-stage'),{videoId,getPlayer:()=>videoPlayer,isCurrent:()=>generation===danceGeneration&&$('surprise').open,isVisible:()=>generation===danceGeneration&&$('surprise').open&&$('video-container').classList.contains('video-visible'),preview});
       if(generation!==danceGeneration){created?.dispose();return;}
@@ -202,7 +202,7 @@
       // iPhone uses an ambient session by default. Request media playback only
       // when the visitor has sound enabled and taps a door or a sound control.
       try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (_) {}
-      if (!audio || audio.state === 'closed') { audio = new Audio(); creakBuffer = null; }
+      if (!audio || audio.state === 'closed') { audio = new Audio(); creakBuffer = null; shortCreakBuffer = null; }
       // Both resume and the silent warm-up must start inside the original tap,
       // before fetch/await consumes Safari's transient user activation.
       const resumed = audio.state === 'running' ? Promise.resolve() : audio.resume();
@@ -214,10 +214,10 @@
     } catch (_) { audioReady = Promise.resolve(false); }
     return audioReady;
   }
-  function createCreakBuffer() {
+  function createCreakBuffer(durationMs = openingMs) {
     // Friction on old hinges: uneven low groans, metallic squeals and dry wood.
     // Render once, locally, so all layers share the exact animation duration.
-    const seconds = openingMs / 1000, rate = audio.sampleRate;
+    const seconds = durationMs / 1000, rate = audio.sampleRate;
     const buffer = audio.createBuffer(1, Math.ceil(rate * seconds), rate);
     const samples = buffer.getChannelData(0);
     let phase = 0, wood = 0, seed = 2026;
@@ -238,7 +238,7 @@
     }
     return buffer;
   }
-  async function creak() {
+  async function creak(durationMs = openingMs) {
     if (!sound) return false;
     try {
       const ready = await Promise.race([audioReady, new Promise(resolve => setTimeout(() => resolve(false), 800))]);
@@ -248,7 +248,8 @@
         return false;
       }
       stopCreak();
-      const source = audio.createBufferSource(); source.buffer = creakBuffer;
+      const source = audio.createBufferSource();
+      source.buffer = durationMs === openingMs ? creakBuffer : (shortCreakBuffer ||= createCreakBuffer(openingMs / 2));
       const filter = audio.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 3400;
       source.connect(filter); filter.connect(audio.destination);
       activeCreak = source;
@@ -332,9 +333,11 @@
       if ((account ? account.id : null) !== clickAccountId || version(account) !== clickVersion) throw Error('Din kalender er ændret. Opdatér kalenderen, og prøv igen.');
       const back = el.querySelector('.door-back'); back.classList.add('has-art'); back.innerHTML = photo(day);
       const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      await creak();
+      const durationMs = el.classList.contains('opened') ? openingMs / 2 : openingMs;
+      el.style.setProperty('--door-opening-duration', `${durationMs}ms`);
+      await creak(durationMs);
       el.classList.add('opening');
-      await new Promise(resolve => setTimeout(resolve, reducedMotion ? 0 : openingMs));
+      await new Promise(resolve => setTimeout(resolve, reducedMotion ? 0 : durationMs));
       $('animal-art').innerHTML = photo(day); $('animal-art').setAttribute('aria-label', data.animal);
       const bounds = el.getBoundingClientRect();
       if (bounds.width > 0 && bounds.height > 0) $('surprise-media').style.setProperty('--photo-aspect', `${bounds.width} / ${bounds.height}`);

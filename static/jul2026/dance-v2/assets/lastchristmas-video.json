@@ -1,0 +1,13 @@
+{
+  "src": "assets/nisse-dans-lastchristmas.mp4",
+  "width": 448,
+  "height": 1000,
+  "fps": 24,
+  "frames": 162,
+  "duration": 6.75,
+  "transitionFrames": 0,
+  "loop": true,
+  "format": "side-by-side-rgb-alpha",
+  "mattingModel": "Local chroma key; source Last Christmas at 0:29",
+  "sourceDuration": 6.75
+}
