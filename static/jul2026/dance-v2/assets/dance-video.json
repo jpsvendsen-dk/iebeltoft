@@ -1,0 +1,14 @@
+{
+  "src": "assets/nisse-dans-rhythm.mp4",
+  "width": 526,
+  "height": 720,
+  "fps": 24,
+  "frames": 195,
+  "duration": 8.125,
+  "songStart": 13,
+  "transitionFrames": 0,
+  "loop": true,
+  "format": "side-by-side-rgb-alpha",
+  "mattingModel": "Higgsfield reconstructed alpha; beat-aligned cut",
+  "sourceDuration": 8.125
+}

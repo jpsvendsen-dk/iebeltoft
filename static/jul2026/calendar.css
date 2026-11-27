@@ -87,3 +87,7 @@
   #surprise .surprise-media:has(.video-visible){width:calc(100% - 20px);height:200px}
   #surprise .surprise-copy{padding:14px 16px}
 }
+/* The filmed dancer preserves its portrait proportions, including on Safari. */
+.elf-stage canvas{width:auto;height:190px;max-width:100%;object-fit:contain;filter:none}
+.elf-stage video[hidden]{display:none!important}
+@media(max-width:700px),(max-height:500px){.elf-stage canvas{width:auto;height:96px}}

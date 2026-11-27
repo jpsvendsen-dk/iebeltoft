@@ -15,12 +15,12 @@
   function stopDancer(){danceGeneration++;dancer?.dispose();dancer=null;$('elf-stage').hidden=true;$('surprise').classList.remove('elf-playing');}
   async function prepareDancer(videoId){
     stopDancer();
-    if(videoId!=='N8NcQzMQN_U')return;
+    if(!['N8NcQzMQN_U','Mv6FViYatkU','XZTzai1H9DM','bjyw-jwPjoQ'].includes(videoId))return;
     const generation=danceGeneration;
     try{
-      const module=await import('/static/jul2026/elf-dancer.js?v=1');
+      const module=await import('/static/jul2026/dance-v2/dancer.js?v=1');
       if(generation!==danceGeneration||!$('surprise').open)return;
-      const created=await module.createDancer($('elf-stage'),{getPlayer:()=>videoPlayer,isCurrent:()=>generation===danceGeneration&&$('surprise').open,isVisible:()=>generation===danceGeneration&&$('surprise').open&&$('video-container').classList.contains('video-visible'),preview});
+      const created=await module.createDancer($('elf-stage'),{videoId,getPlayer:()=>videoPlayer,isCurrent:()=>generation===danceGeneration&&$('surprise').open,isVisible:()=>generation===danceGeneration&&$('surprise').open&&$('video-container').classList.contains('video-visible'),preview});
       if(generation!==danceGeneration){created?.dispose();return;}
       dancer=created;
     }catch(_){/* The dance is decorative; a missing asset must never block music. */}
