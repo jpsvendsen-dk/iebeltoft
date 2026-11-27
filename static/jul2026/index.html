@@ -29,9 +29,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&amp;family=Playfair+Display:wght@400;500;600&amp;display=swap">
-  <link rel="stylesheet" href="/static/jul2026/calendar.css?v=18">
+  <link rel="stylesheet" href="/static/jul2026/calendar.css?v=19">
   <link rel="stylesheet" href="/static/jul2026/snake.css?v=9">
-  <script src="/static/jul2026/calendar.js?v=17" defer></script>
+  <script src="/static/jul2026/calendar.js?v=18" defer></script>
   <script src="/static/jul2026/cursor-snow.js?v=1" defer></script>
   <script type="module" src="/static/jul2026/snake.js?v=8"></script>
 </head>
@@ -102,7 +102,7 @@
   </dialog>
   <dialog id="surprise" aria-labelledby="surprise-title">
     <button class="close" id="surprise-close" aria-label="Luk lågen">×</button>
-    <div class="surprise-media" id="surprise-media"><div class="animal-art" id="animal-art" role="img"></div><div id="video-container" aria-hidden="true" inert></div></div>
+    <div class="surprise-visual"><div class="surprise-media" id="surprise-media"><div class="animal-art" id="animal-art" role="img"></div><div id="video-container" aria-hidden="true" inert></div></div><section id="elf-stage" class="elf-stage" hidden aria-label="Dansende nissepige"><canvas width="480" height="480" role="img" aria-label="En glad nissepige danser til julesangen"></canvas><div class="elf-options"><p class="elf-caption"></p><button type="button" class="elf-toggle" aria-pressed="false">Pause nissen</button></div></section></div>
     <div class="surprise-copy"><p id="day-label" class="eyebrow"></p><h2 id="surprise-title"></h2><div class="song"><span class="music-note" aria-hidden="true">♫</span><div><p class="song-label">DAGENS JULESANG</p><h3 id="song-title"></h3><p id="song-artist"></p></div></div><p id="door-reflection" class="door-reflection"></p><button class="youtube" id="play-inline" type="button" aria-pressed="false" aria-controls="video-container">▶ Afspil video her</button><a class="youtube youtube-external" id="youtube" target="_blank" rel="noopener noreferrer">Åbn på YouTube</a><p class="external-note">YouTube-linket åbner i en ny fane.</p><p class="external-note" id="video-help" hidden>Kan videoen ikke afspilles her? Vælg “Åbn på YouTube”.</p></div>
   </dialog>
   <dialog id="about" aria-labelledby="about-title">

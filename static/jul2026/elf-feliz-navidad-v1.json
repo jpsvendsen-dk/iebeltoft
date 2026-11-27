@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "videoId": "N8NcQzMQN_U",
+  "title": "Feliz Navidad — danseprøve",
+  "verification": "draft-needs-listening",
+  "timingNote": "Tempo grid is a starting estimate, not an audio-verified transcription. Use the admin preview calibration controls to check the exact video before claiming beat accuracy.",
+  "bpm": 148.75,
+  "end": 183,
+  "anchors": [{"time": 0.12, "beat": 0}, {"time": 180.01915966386554, "beat": 446}],
+  "rests": []
+}

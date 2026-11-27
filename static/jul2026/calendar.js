@@ -11,6 +11,20 @@
   let audioReady = Promise.resolve(false);
   let popupVideoId = null;
   let videoPlayer = null, videoReady = false, videoGeneration = 0, videoTimer, youtubeApi;
+  let dancer=null,danceGeneration=0;
+  function stopDancer(){danceGeneration++;dancer?.dispose();dancer=null;$('elf-stage').hidden=true;$('surprise').classList.remove('elf-playing');}
+  async function prepareDancer(videoId){
+    stopDancer();
+    if(videoId!=='N8NcQzMQN_U')return;
+    const generation=danceGeneration;
+    try{
+      const module=await import('/static/jul2026/elf-dancer.js?v=1');
+      if(generation!==danceGeneration||!$('surprise').open)return;
+      const created=await module.createDancer($('elf-stage'),{getPlayer:()=>videoPlayer,isCurrent:()=>generation===danceGeneration&&$('surprise').open,isVisible:()=>generation===danceGeneration&&$('surprise').open&&$('video-container').classList.contains('video-visible'),preview});
+      if(generation!==danceGeneration){created?.dispose();return;}
+      dancer=created;
+    }catch(_){/* The dance is decorative; a missing asset must never block music. */}
+  }
   function loadYouTubeApi() {
     if (window.YT && window.YT.Player) return Promise.resolve(window.YT);
     if (youtubeApi) return youtubeApi;
@@ -28,6 +42,7 @@
     return youtubeApi;
   }
   function showPicture() {
+    dancer?.hide();
     try { if (videoReady && videoPlayer) videoPlayer.pauseVideo(); } catch (_) {}
     $('video-container').classList.remove('video-visible');
     $('video-container').setAttribute('aria-hidden', 'true');
@@ -38,6 +53,7 @@
     if (videoReady) $('play-inline').textContent = '▶ Afspil video her';
   }
   function disposeVideo() {
+    stopDancer();
     videoGeneration++; clearTimeout(videoTimer);
     try { if (videoPlayer) videoPlayer.destroy(); } catch (_) {}
     videoPlayer = null; videoReady = false; popupVideoId = null;
@@ -50,6 +66,7 @@
     if (!popupVideoId) { $('play-inline').textContent = 'Brug YouTube-linket'; return; }
     const failed = () => {
       if (generation !== videoGeneration) return;
+      dancer?.playerState(-1);
       videoReady = false; $('play-inline').disabled = true;
       $('play-inline').textContent = 'Brug YouTube-linket';
       $('video-help').textContent = 'Videoen kunne ikke klargøres her. Vælg “Åbn på YouTube”.';
@@ -74,10 +91,13 @@
         },
         onAutoplayBlocked: () => {
           if (generation !== videoGeneration) return;
+          dancer?.playerState(-1);
           $('video-help').textContent = 'Tryk på afspilningsknappen i videoen, hvis din browser kræver det. Du kan også vælge “Åbn på YouTube”.';
           $('video-help').hidden = false;
         },
         onError: failed,
+        onStateChange:event=>{if(generation===videoGeneration)dancer?.playerState(event.data);},
+        onPlaybackRateChange:()=>{if(generation===videoGeneration)dancer?.refresh();},
       }});
     }).catch(failed);
   }
@@ -327,6 +347,7 @@
       popupVideoId = videoId && /^[A-Za-z0-9_-]{11}$/.test(videoId) ? videoId : null;
       $('surprise').showModal();
       prepareVideo();
+      void prepareDancer(popupVideoId);
       opened.add(day); rememberOpened();
       el.classList.remove('opening'); el.classList.add('opened'); el.setAttribute('aria-label', `${day}. december, allerede åbnet`); updateCount();
       if (account && !account.opened.includes(day)) account.opened.push(day);

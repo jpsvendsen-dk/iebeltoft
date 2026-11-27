@@ -1,0 +1,27 @@
+Original artwork generated with the built-in image_gen tool, 2026-11-27.
+
+Generate a professional 2D skeletal animation cutout atlas for an adorable,
+happy Danish Christmas elf girl. True transparent background. Exact 4x4
+equal-cell grid with isolated parts and generous transparent padding.
+Elegant hand-painted animation illustration, warm shading, expressive green
+eyes, rosy cheeks, auburn curls, red velvet Christmas dress, ivory fur trim,
+gold buttons, red tights, brown ankle boots. Front-facing orthographic view.
+Same consistent character throughout. No writing, labels, lines, background,
+checkerboard, watermark or assembled characters.
+
+Cells in reading order:
+1 smiling face and neck, without hair or hat; 2 back hair silhouette;
+3 red hat base with fur brim; 4 dress torso, collar and buttons;
+5 flared skirt; 6 left upper sleeve; 7 right upper sleeve;
+8 left forearm, cuff and hand; 9 right forearm, cuff and hand;
+10 left tights thigh; 11 right tights thigh;
+12 left shin and ankle boot; 13 right shin and ankle boot;
+14 front bangs; 15 floppy hat tip with pompom; 16 swinging curled hair lock.
+Rounded overlap ends for joints. Polished readable detail at small size.
+
+Cleanup pass: preserve the sixteen pieces and grid positions. Remove all
+background contamination and grid seams. Keep genuine transparency with
+clean antialiasing only around the illustrated part silhouettes.
+
+The production atlas is cropped and scaled by scripts/build_elf_assets.py.
+It uses lossless WebP and retains the generated alpha channel.

@@ -10,9 +10,12 @@ export async function runTests() {
   new vm.Script(source);
   new vm.Script(await readFile(new URL('../static/jul2026/login.js', import.meta.url), 'utf8'));
 
-  function harness({path='/Jul2026', stored={}, merge=false, account=null, offlineInitial=false, audioState=null, audioBlocked=false, apiAvailable=true}={}) {
+  function harness({path='/Jul2026', stored={}, merge=false, account=null, offlineInitial=false, audioState=null, audioBlocked=false, apiAvailable=true, pilot=false, deferDance=false}={}) {
     const nodes=new Map(), storage=new Map(Object.entries(stored)), session=new Map(merge ? [['jul2026-merge-guest','yes']] : []);
-    const calls=[], audioCalls=[], sources=[], audioSession={}, players=[];
+    const calls=[], audioCalls=[], sources=[], audioSession={}, players=[],danceCalls=[];
+    let resolveDance;
+    const dance={states:[],disposed:false,hidden:false,playerState(value){this.states.push(value);},refresh(){this.refreshed=true;},hide(){this.hidden=true;},dispose(){this.disposed=true;}};
+    const danceModule={createDancer:async(stage,options)=>{danceCalls.push({stage,options});return dance;}};
     let current=account, offline=offlineInitial, refresh, dropNextOpen=false;
     class Element {
       constructor() { this.style={setProperty(k,v){this[k]=v;}}; this.dataset={}; this.children=[]; this.classes=new Set(); this.attrs={}; this.listeners={}; this.classList={add:n=>this.classes.add(n),remove:n=>this.classes.delete(n),contains:n=>this.classes.has(n)}; }
@@ -47,6 +50,7 @@ export async function runTests() {
       document:{getElementById:get,documentElement:new Element(),head:get('document-head'),createElement:()=>new Element(),addEventListener(){}},
       location:{pathname:path,origin:'https://www.iebeltoft.dk',assign(){}},localStorage:storageApi(storage),sessionStorage:storageApi(session),
       crypto:{randomUUID},URL,
+      loadDancer:()=>{danceCalls.push('load');return deferDance?new Promise(resolve=>{resolveDance=resolve;}):Promise.resolve(danceModule);},
       navigator:{audioSession},window:{YT:apiAvailable?{Player:YouTubePlayer}:undefined,AudioContext:audioState?SafariAudio:undefined,matchMedia:()=>({matches:true})},setTimeout:(f,ms)=>{if(ms===0)f();return 1;},clearTimeout(){},setInterval:f=>{refresh=f;},
       fetch:(url,options={})=>{
         audioCalls.push('fetch');
@@ -69,7 +73,7 @@ export async function runTests() {
           if(!allowed){ok=false;status=403;result={detail:'Lågen er låst.'};}
           else{
             if(current)current.opened=[...new Set([...current.opened,day])].sort((a,b)=>a-b);
-            result={title:'Song',artist:'Artist',youtube:'https://www.youtube.com/watch?v=testVideo'+String(day).padStart(2,'0'),animal:'Fox',reflection:`Reflection for day ${day}`};
+            result={title:'Song',artist:'Artist',youtube:pilot&&day===1?'https://www.youtube.com/watch?v=N8NcQzMQN_U':'https://www.youtube.com/watch?v=testVideo'+String(day).padStart(2,'0'),animal:'Fox',reflection:`Reflection for day ${day}`};
             if(dropNextOpen){dropNextOpen=false;throw Error('Response lost');}
           }
         }
@@ -77,11 +81,24 @@ export async function runTests() {
         return {ok,status:ok?200:status===403?403:503,json:()=>result};
       },
     },{microtaskMode:'afterEvaluate'});
-    new vm.Script(source).runInContext(ctx);
+    // Supply the lazy module loader explicitly in this browser simulation.
+    new vm.Script(source.replace("await import('/static/jul2026/elf-dancer.js?v=1')",'await loadDancer()')).runInContext(ctx);
     const drain=()=>{for(let i=0;i<20;i++)vm.runInContext('',ctx);};
     drain();
-    return {get,storage,calls,drain,players,readyVideo:()=>{const p=players.at(-1);p.events.onReady({target:p});drain();},settle:async()=>{for(let i=0;i<4;i++){await nextTurn();drain();}},audioCalls,sources,audioSession,refresh:()=>{refresh();drain();},setAccount:a=>{current=a;},offline:v=>{offline=v;},loseResponse:()=>{dropNextOpen=true;},days:()=>current?.opened,door:day=>get('calendar').children.find(e=>e.dataset.day===day)};
+    return {get,storage,calls,drain,players,danceCalls,dance,resolveDance:()=>resolveDance(danceModule),readyVideo:()=>{const p=players.at(-1);p.events.onReady({target:p});drain();},settle:async()=>{for(let i=0;i<4;i++){await nextTurn();drain();}},audioCalls,sources,audioSession,refresh:()=>{refresh();drain();},setAccount:a=>{current=a;},offline:v=>{offline=v;},loseResponse:()=>{dropNextOpen=true;},days:()=>current?.opened,door:day=>get('calendar').children.find(e=>e.dataset.day===day)};
   }
+
+  const pilot=harness({pilot:true});assert.equal(pilot.danceCalls.length,0);
+  pilot.door(2).listeners.click();pilot.drain();assert.equal(pilot.danceCalls.length,0);
+  pilot.get('surprise-close').onclick();pilot.door(1).listeners.click();pilot.drain();await pilot.settle();
+  assert.equal(pilot.danceCalls[0],'load');assert.equal(pilot.danceCalls.length,2);
+  pilot.readyVideo();pilot.get('play-inline').listeners.click();assert.equal(pilot.players.at(-1).plays,1);
+  pilot.players.at(-1).events.onStateChange({data:1});pilot.players.at(-1).events.onStateChange({data:2});
+  assert.deepEqual(pilot.dance.states,[1,2]);
+  pilot.get('surprise-close').onclick();assert(pilot.dance.disposed);assert(pilot.get('elf-stage').hidden);
+  const lateDance=harness({pilot:true,deferDance:true});lateDance.door(1).listeners.click();lateDance.drain();
+  lateDance.get('surprise-close').onclick();lateDance.resolveDance();lateDance.drain();await lateDance.settle();
+  assert.equal(lateDance.danceCalls.length,1);assert(lateDance.get('elf-stage').hidden);
 
   const a=harness({stored:{'jul2026-opened':'[1,2]'},merge:true,account:{id:1,email:'a@example.com',opened:[3]}});
   assert.deepEqual(a.days(),[1,2,3]);
